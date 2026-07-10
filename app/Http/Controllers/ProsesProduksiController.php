@@ -11,12 +11,32 @@ use Carbon\Carbon;
 
 class ProsesProduksiController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // 1. Ambil data dari database (pakai paginate seperti yang sudah kita buat)
-        $prosesProduksi = ProsesProduksi::paginate(20);
+        // 1. Tangkap parameter dari URL (Sekarang hanya ID dan Proses)
+        $filterProses = $request->get('proses'); 
+        $filterId     = $request->get('id');
+        
+        // 2. Mulai merakit Query Database
+        $query = ProsesProduksi::query();
 
-        // 2. Looping data untuk menghitung total jam secara on-the-fly
+        // Jika user mengetikkan ID, cari ID yang cocok
+        if (!empty($filterId)) {
+            $query->where('id', $filterId);
+        }
+
+        // Jika user memilih filter proses, tambahkan ke pencarian
+        if (!empty($filterProses)) {
+            $query->where('proses', $filterProses);
+        }
+
+        // Otomatis selalu urutkan dari data terbaru (ID terbesar) ke terlama
+        $query->orderBy('id', 'desc');
+
+        // Eksekusi data
+        $prosesProduksi = $query->paginate(20)->appends($request->query());
+
+        // 3. Looping data untuk menghitung total jam secara on-the-fly
         foreach ($prosesProduksi as $data) {
             $totalJam = 0;
 
@@ -26,8 +46,8 @@ class ProsesProduksiController extends Controller
                 // Tentukan waktu mulai: Utamakan 'set', jika kosong baru pakai 'run'
                 $waktuMulaiString = !empty($data->set) ? $data->set : $data->run;
 
-                $waktuMulai = Carbon::parse($waktuMulaiString);
-                $waktuFinish = Carbon::parse($data->finish);
+                $waktuMulai = \Carbon\Carbon::parse($waktuMulaiString);
+                $waktuFinish = \Carbon\Carbon::parse($data->finish);
 
                 // Hitung selisih dalam menit, lalu bagi 60 menjadi jam
                 $selisihMenit = $waktuMulai->diffInMinutes($waktuFinish);
@@ -39,22 +59,36 @@ class ProsesProduksiController extends Controller
                 }
             }
 
-            // 3. Buat properti baru (variabel bayangan) bernama 'jam_kalkulasi'
             // Gunakan max(0, ...) agar jika waktu salah input, tidak jadi minus
             $data->jam_kalkulasi = max(0, round($totalJam, 2));
-            // Menempelkan hasil hitungan ke dalam properti $data
+            
+            // ==========================================
+            // PENGAMANAN TIPE DATA (String ke Float)
+            // ==========================================
+            $outputdrik = (float) str_replace('.', '', (string) $data->outputdrik);
+            $upspk      = (float) str_replace('.', '', (string) $data->upspk);
+            $jtdrik     = (float) str_replace('.', '', (string) $data->jtdrik);
+            $jtpcs      = (float) str_replace('.', '', (string) $data->jtpcs);
+            
             // output = drik x upspk
-            $data->outputpcs = $data->outputdrik * $data->upspk;
+            $data->outputpcs = $outputdrik * $upspk;
+            
             // total pengerjaan = jt drik + output drik
-            // total pengerjaan = jt drik + output drik
-            $data->total_pengerjaan_drik = ($data->jtdrik ?? 0) + ($data->outputdrik ?? 0);
+            $data->total_pengerjaan_drik = $jtdrik + $outputdrik;
             
             // total pengerjaan = jt pcs + output pcs
-            $data->total_pengerjaan_pcs = ($data->jtpcs ?? 0) + ($data->outputpcs ?? 0);
+            $data->total_pengerjaan_pcs = $jtpcs + $data->outputpcs;
         }
 
-        // 4. Kirim ke view
-        return view('proses_produksi.index', compact('prosesProduksi'));
+        // 4. Siapkan master proses untuk mengisi dropdown di halaman Blade
+        $masterProses = [
+            'PRINT', 'SORTIR CETAK', 'WATERBASE', 'HOCK', 'HOTPRINT',
+            'LAMINASI', 'LAMINATING', 'EMBOSS', 'DIECUT', 'CUTTING',
+            'PRETEL', 'LEM', 'SORTIR', 'PACKING'
+        ];
+
+        // 5. Kirim ke view beserta masterProses
+        return view('proses_produksi.index', compact('prosesProduksi', 'masterProses'));
     }
     
     public function create()
@@ -96,9 +130,25 @@ class ProsesProduksiController extends Controller
             }
 
             $data->jam_kalkulasi = max(0, round($totalJam, 2));
-            $data->outputpcs = ($data->outputdrik ?? 0) * ($data->upspk ?? 0);
-            $data->total_pengerjaan_drik = ($data->jtdrik ?? 0) + ($data->outputdrik ?? 0);
-            $data->total_pengerjaan_pcs = ($data->jtpcs ?? 0) + ($data->outputpcs ?? 0);
+            // ==========================================
+            // PENGAMANAN TIPE DATA (String ke Float)
+            // ==========================================
+            // Timpa langsung properti bawaan $data dengan angka yang sudah dibersihkan
+            $data->outputdrik = (float) str_replace('.', '', (string) $data->outputdrik);
+            $data->upspk      = (float) str_replace('.', '', (string) $data->upspk);
+            $data->jtdrik     = (float) str_replace('.', '', (string) $data->jtdrik);
+            $data->jtpcs      = (float) str_replace('.', '', (string) $data->jtpcs);
+
+            // Karena sekarang $data->... sudah dijamin berupa angka (float),
+            // kita bisa langsung memakainya untuk matematika tanpa error string + string
+            $data->outputpcs = $data->outputdrik * $data->upspk;
+            
+            // total pengerjaan = jt drik + output drik
+            $data->total_pengerjaan_drik = $data->jtdrik + $data->outputdrik;
+            
+            // total pengerjaan = jt pcs + output pcs
+            $data->total_pengerjaan_pcs = $data->jtpcs + $data->outputpcs;
+            // ==========================================
         }
 
         // 3. BUAT TABEL RANGKUMAN

@@ -25,7 +25,36 @@
                 {{ session('error') }}
             </div>
         @endif
+<div class="bg-white p-4 mb-6 rounded-lg shadow-sm border border-gray-200">
+        <form action="{{ route('proses-produksi.index') }}" method="GET" class="flex flex-wrap gap-4 items-end">
+            
+            <div class="flex-1 min-w-[200px]">
+                <label for="proses" class="block text-xs font-bold text-gray-700 mb-1 uppercase">Filter Proses</label>
+                <select name="proses" id="proses" class="w-full border border-gray-300 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- SEMUA PROSES --</option>
+                    @foreach($masterProses as $prosesName)
+                        <option value="{{ $prosesName }}" {{ request('proses') == $prosesName ? 'selected' : '' }}>
+                            {{ $prosesName }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
+            <div class="flex-1 min-w-[150px]">
+                <label for="id" class="block text-xs font-bold text-gray-700 mb-1 uppercase">Cari ID</label>
+                <input type="number" name="id" id="id" value="{{ request('id') }}" placeholder="Contoh: 15" 
+                       class="w-full border border-gray-300 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="bg-blue-600 text-white font-semibold text-sm px-5 py-2 rounded-md hover:bg-blue-700 transition">
+                    Terapkan
+                </button>
+                <a href="{{ route('proses-produksi.index') }}" class="bg-gray-200 text-gray-800 font-semibold text-sm px-5 py-2 rounded-md hover:bg-gray-300 transition flex items-center">
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left text-gray-600 border border-gray-200">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-200">
