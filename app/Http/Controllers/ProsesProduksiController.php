@@ -12,84 +12,99 @@ use Carbon\Carbon;
 class ProsesProduksiController extends Controller
 {
     public function index(Request $request)
-    {
-        // 1. Tangkap parameter dari URL (Sekarang hanya ID dan Proses)
-        $filterProses = $request->get('proses'); 
-        $filterId     = $request->get('id');
-        
-        // 2. Mulai merakit Query Database
-        $query = ProsesProduksi::query();
+{
+    // 1.Tangkap input tanggal dari form filter
+    $filterProses = $request->get('proses'); 
+    $filterId     = $request->get('id');
+    $startDate    = $request->get('start_date');
+    $endDate      = $request->get('end_date');
+    $filterJob      = $request->get('job');
+    $filterOperator = $request->get('operator');
+    
+    $query = ProsesProduksi::query();
 
-        // Jika user mengetikkan ID, cari ID yang cocok
-        if (!empty($filterId)) {
-            $query->where('id', $filterId);
-        }
-
-        // Jika user memilih filter proses, tambahkan ke pencarian
-        if (!empty($filterProses)) {
-            $query->where('proses', $filterProses);
-        }
-
-        // Otomatis selalu urutkan dari data terbaru (ID terbesar) ke terlama
-        $query->orderBy('id', 'desc');
-
-        // Eksekusi data
-        $prosesProduksi = $query->paginate(20)->appends($request->query());
-
-        // 3. Looping data untuk menghitung total jam secara on-the-fly
-        foreach ($prosesProduksi as $data) {
-            $totalJam = 0;
-
-            // Pastikan kolom finish tidak kosong, dan salah satu dari set ATAU run terisi
-            if (!empty($data->finish) && (!empty($data->set) || !empty($data->run))) {
-                
-                // Tentukan waktu mulai: Utamakan 'set', jika kosong baru pakai 'run'
-                $waktuMulaiString = !empty($data->set) ? $data->set : $data->run;
-
-                $waktuMulai = \Carbon\Carbon::parse($waktuMulaiString);
-                $waktuFinish = \Carbon\Carbon::parse($data->finish);
-
-                // Hitung selisih dalam menit, lalu bagi 60 menjadi jam
-                $selisihMenit = $waktuMulai->diffInMinutes($waktuFinish);
-                $totalJam = $selisihMenit / 60;
-
-                // Logika potong 1 jam jika break = TRUE (atau 1)
-                if (strtoupper($data->break) === 'TRUE' || $data->break == 1) {
-                    $totalJam -= 1;
-                }
-            }
-
-            // Gunakan max(0, ...) agar jika waktu salah input, tidak jadi minus
-            $data->jam_kalkulasi = max(0, round($totalJam, 2));
-            
-            // ==========================================
-            // PENGAMANAN TIPE DATA (String ke Float)
-            // ==========================================
-            $outputdrik = (float) str_replace('.', '', (string) $data->outputdrik);
-            $upspk      = (float) str_replace('.', '', (string) $data->upspk);
-            $jtdrik     = (float) str_replace('.', '', (string) $data->jtdrik);
-            $jtpcs      = (float) str_replace('.', '', (string) $data->jtpcs);
-            
-            // output = drik x upspk
-            $data->outputpcs = $outputdrik * $upspk;
-            
-            // total pengerjaan = jt drik + output drik
-            $data->total_pengerjaan_drik = $jtdrik + $outputdrik;
-            
-            // total pengerjaan = jt pcs + output pcs
-            $data->total_pengerjaan_pcs = $jtpcs + $data->outputpcs;
-        }
-
-        // 4. Siapkan master proses untuk mengisi dropdown di halaman Blade
-        $masterProses = [
-            'PRINT', 'SORTIR CETAK', 'WATERBASE', 'HOCK', 'HOTPRINT',
-            'LAMINASI', 'LAMINATING', 'EMBOSS', 'DIECUT', 'CUTTING',
-            'PRETEL', 'LEM', 'SORTIR', 'PACKING'
-        ];
-
-        // 5. Kirim ke view beserta masterProses
-        return view('proses_produksi.index', compact('prosesProduksi', 'masterProses'));
+    if (!empty($filterId)) {
+        $query->where('id', $filterId);
     }
+    if (!empty($filterProses)) {
+        $query->where('proses', $filterProses);
+    }
+    if (!empty($filterJob)) {
+        $query->where('job', 'like', '%' . $filterJob . '%');
+    }
+    if (!empty($filterOperator)) {
+        $query->where('operator', 'like', '%' . $filterOperator . '%');
+    }
+    // 2.Logika filter rentang tanggal
+    if (!empty($startDate) && !empty($endDate)) {
+        // Jika dari tanggal & sampai tanggal diisi keduanya
+        $query->whereBetween('tanggal', [$startDate, $endDate]);
+    } elseif (!empty($startDate)) {
+        // Jika hanya mengisi "Dari Tanggal" saja
+        $query->whereDate('tanggal', '>=', $startDate);
+    } elseif (!empty($endDate)) {
+        // Jika hanya mengisi "Sampai Tanggal" saja
+        $query->whereDate('tanggal', '<=', $endDate);
+    }
+
+    $query->orderBy('id', 'desc');
+
+    // Bagian ini sudah sangat tepat karena pakai ->appends($request->query())
+    $prosesProduksi = $query->paginate(15)->appends($request->query());
+
+    foreach ($prosesProduksi as $data) {
+        $totalJam = 0;
+
+        if (!empty($data->finish) && (!empty($data->set) || !empty($data->run))) {
+            $waktuMulaiString = !empty($data->set) ? $data->set : $data->run;
+            $waktuMulai = \Carbon\Carbon::parse($waktuMulaiString);
+            $waktuFinish = \Carbon\Carbon::parse($data->finish);
+
+            $selisihMenit = $waktuMulai->diffInMinutes($waktuFinish);
+            $totalJam = $selisihMenit / 60;
+
+            if (strtoupper($data->break) === 'TRUE' || $data->break == 1) {
+                $totalJam -= 1;
+            }
+        }
+
+        // Timpa langsung properti asli database
+        $data->totaljam = max(0, round($totalJam, 2));
+        
+        $data->outputdrik = (float) str_replace('.', '', (string) $data->outputdrik);
+        $data->upspk      = (float) str_replace('.', '', (string) $data->upspk);
+        $data->jtdrik     = (float) str_replace('.', '', (string) $data->jtdrik);
+        $data->jtpcs      = (float) str_replace('.', '', (string) $data->jtpcs);
+        
+        $data->outputpcs = $data->outputdrik * $data->upspk;
+        $data->total_pengerjaan_drik = $data->jtdrik + $data->outputdrik;
+        $data->total_pengerjaan_pcs  = $data->jtpcs + $data->outputpcs;
+    }
+
+    // =================================================================
+    // PERBAIKAN: Tarik daftar proses yang unik langsung dari database!
+    // =================================================================
+    $daftarProses = ProsesProduksi::select('proses')
+        ->whereNotNull('proses')
+        ->distinct()
+        ->orderBy('proses')
+        ->pluck('proses');
+    
+    // Ambil data
+    $data = $query->latest()->get();
+
+    // Hitung total dari data yang tampil
+    $total = [
+    'input'      => $data->sum(fn($x) => (int)$x->input),
+    'jtpcs'      => $data->sum(fn($x) => (int)$x->jtpcs),
+    'jtdrik'     => $data->sum(fn($x) => (int)$x->jtdrik),
+    'outputpcs'  => $data->sum(fn($x) => (int)$x->outputpcs),
+    'outputdrik' => $data->sum(fn($x) => (int)$x->outputdrik),
+];
+
+    // Kirim $daftarProses (bukan masterProses) ke view index
+    return view('proses_produksi.index', compact('prosesProduksi', 'daftarProses', 'total'));
+}
     
     public function create()
     {
@@ -105,14 +120,12 @@ class ProsesProduksiController extends Controller
     public function show($job_id)
     {
         // 1. AMBIL DATA KHUSUS JOB INI SAJA
-        // Gunakan where() agar hanya data dengan job_id tersebut yang ditarik
         $detailProses = ProsesProduksi::where('job', $job_id)->get();
 
         // Ambil nomor docket dari baris pertama (jika datanya ada)
         $docket = $detailProses->first()->designno ?? '-';
 
         // 2. HITUNG ATRIBUT VIRTUAL (ON-THE-FLY)
-        // Kita hitung dulu jam dan pcs untuk setiap baris detailnya
         foreach ($detailProses as $data) {
             $totalJam = 0;
 
@@ -129,26 +142,19 @@ class ProsesProduksiController extends Controller
                 }
             }
 
-            $data->jam_kalkulasi = max(0, round($totalJam, 2));
-            // ==========================================
+            $data->totaljam = max(0, round($totalJam, 2));
+
+           
             // PENGAMANAN TIPE DATA (String ke Float)
-            // ==========================================
-            // Timpa langsung properti bawaan $data dengan angka yang sudah dibersihkan
             $data->outputdrik = (float) str_replace('.', '', (string) $data->outputdrik);
             $data->upspk      = (float) str_replace('.', '', (string) $data->upspk);
             $data->jtdrik     = (float) str_replace('.', '', (string) $data->jtdrik);
             $data->jtpcs      = (float) str_replace('.', '', (string) $data->jtpcs);
 
-            // Karena sekarang $data->... sudah dijamin berupa angka (float),
-            // kita bisa langsung memakainya untuk matematika tanpa error string + string
+            // Perhitungan matematika menggunakan data yang sudah bersih
             $data->outputpcs = $data->outputdrik * $data->upspk;
-            
-            // total pengerjaan = jt drik + output drik
             $data->total_pengerjaan_drik = $data->jtdrik + $data->outputdrik;
-            
-            // total pengerjaan = jt pcs + output pcs
             $data->total_pengerjaan_pcs = $data->jtpcs + $data->outputpcs;
-            // ==========================================
         }
 
         // 3. BUAT TABEL RANGKUMAN
@@ -167,12 +173,12 @@ class ProsesProduksiController extends Controller
                 return strtoupper($item->proses) == $prosesName;
             });
 
-            // Gunakan fungsi sum() dari Laravel (bekerja persis seperti fungsi SUMIF)
             $rangkuman[] = [
                 'proses'                => $prosesName,
-                'jam'                   => $dataPerProses->sum('jam_kalkulasi'),
+                // PERBAIKAN PENTING: Ubah menjadi totaljam karena jam_kalkulasi sudah tidak ada
+                'jam'                   => $dataPerProses->sum('totaljam'),
                 'jt_drik'               => $dataPerProses->sum('jtdrik'),
-                'jt_pcs'               => $dataPerProses->sum('jtpcs'),
+                'jt_pcs'                => $dataPerProses->sum('jtpcs'),
                 'output_drik'           => $dataPerProses->sum('outputdrik'),
                 'output_pcs'            => $dataPerProses->sum('outputpcs'),
                 'total_pengerjaan_drik' => $dataPerProses->sum('total_pengerjaan_drik'),
@@ -180,11 +186,18 @@ class ProsesProduksiController extends Controller
                 'selisih_drik'          => 0, 
                 'selisih_pcs'           => 0,
             ];
+ 
         }
+     $total = [
+    'input'      => $detailProses->sum(fn($x) => (float) $x->input),
+    'jtpcs'      => $detailProses->sum(fn($x) => (float) $x->jtpcs),
+    'jtdrik'     => $detailProses->sum(fn($x) => (float) $x->jtdrik),
+    'outputpcs'  => $detailProses->sum(fn($x) => (float) $x->outputpcs),
+    'outputdrik' => $detailProses->sum(fn($x) => (float) $x->outputdrik),
+];
 
         // 4. KIRIM DATA KE BLADE
-        // Kita kirim 'rangkuman' untuk tabel atas, dan 'detailProses' untuk tabel riwayat di bawah
-        return view('proses_produksi.show', compact('rangkuman', 'detailProses', 'job_id', 'docket'));
+        return view('proses_produksi.show', compact('rangkuman', 'detailProses', 'job_id', 'docket','total'));
     }
 
     public function getJobData($job_id)
@@ -364,6 +377,88 @@ public function store(Request $request)
 }
 }
 
-
+public function edit($id)
+{
+    $prosesProduksi = ProsesProduksi::findOrFail($id);
+ 
+    return view('proses_produksi.edit', compact('prosesProduksi'));
+}
+ 
+public function update(Request $request, $id)
+{
+    $prosesProduksi = ProsesProduksi::findOrFail($id);
+ 
+    $rules = [
+        'job'            => 'nullable|string',
+        'tanggal'        => 'nullable|string',
+        'product'        => 'nullable|string',
+        'designno'       => 'nullable|string',
+        'po'             => 'nullable|string',
+        'qty'            => 'nullable|string',
+        'palet'          => 'nullable|string',
+        'proses'         => 'required|string',
+        'mesin'          => 'nullable|string',
+        'shift'          => 'nullable|string',
+        'vendormat'      => 'nullable|string',
+        'type'           => 'nullable|string',
+        'operator'       => 'nullable|string',
+        'jumlahtim'      => 'nullable|string',
+        'toleransi'      => 'nullable|string',
+        'pengawas'       => 'nullable|string',
+        'shiftpengawas'  => 'nullable|string',
+        'set'            => 'nullable|string',
+        'run'            => 'nullable|string',
+        'finish'         => 'nullable|string',
+        'break'          => 'nullable|string',
+        'input'          => 'nullable|string',
+        'upspk'          => 'nullable|string',
+        'target'         => 'nullable|string',
+        'jtdrik'         => 'nullable|string',
+        'jtpcs'          => 'nullable|string',
+        'outputdrik'     => 'nullable|string',
+        'karantina'      => 'nullable|string',
+        'notok'          => 'nullable|string',
+        'ok'             => 'nullable|string',
+        // reject checkboxes
+        'warna'          => 'nullable|string',
+        'banjir'         => 'nullable|string',
+        'beset'          => 'nullable|string',
+        'powder'         => 'nullable|string',
+        'wb'             => 'nullable|string',
+        'uvkasar'        => 'nullable|string',
+        'uvmbleset'      => 'nullable|string',
+        'tidakuv'        => 'nullable|string',
+        'hotprint'       => 'nullable|string',
+        'laminating'     => 'nullable|string',
+        'laminasikurang' => 'nullable|string',
+        'laminasi'       => 'nullable|string',
+        'tidakpresisi'   => 'nullable|string',
+        'pecah'          => 'nullable|string',
+        'emboss'         => 'nullable|string',
+        'porforasi'      => 'nullable|string',
+        'sobek'          => 'nullable|string',
+        'lengket'        => 'nullable|string',
+        'll'             => 'nullable|string',
+        'noteoperator'   => 'nullable|string',
+        'ket'            => 'nullable|string',
+    ];
+ 
+    $validated = $request->validate($rules);
+ 
+    // Checkbox yang tidak dicentang tidak terkirim → set null / 0
+    $checkboxFields = [
+        'warna','banjir','beset','powder','wb','uvkasar','uvmbleset',
+        'tidakuv','hotprint','laminating','laminasikurang','laminasi',
+        'tidakpresisi','pecah','emboss','porforasi','sobek','lengket','ll',
+    ];
+    foreach ($checkboxFields as $field) {
+        $validated[$field] = $request->has($field) ? '1' : null;
+    }
+ 
+    $prosesProduksi->update($validated);
+ 
+    return redirect()->route('proses-produksi.index')
+                     ->with('success', 'Data berhasil diperbarui.');
+}
 
 }

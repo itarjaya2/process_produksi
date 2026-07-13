@@ -15,3 +15,10 @@ Route::get('/proses-produksi/create', [ProsesProduksiController::class, 'create'
 // Route untuk melihat detail berdasarkan nomor job
 Route::get('/proses-produksi/job/{job_id}', [ProsesProduksiController::class, 'show'])->name('proses-produksi.show');
 Route::get('/get-job-data/{job_id}', [ProsesProduksiController::class, 'getJobData']);
+Route::get('/proses-produksi/{id}/edit', [ProsesProduksiController::class, 'edit'])
+    ->name('proses-produksi.edit');
+
+
+
+Route::put('/proses-produksi/{id}', [ProsesProduksiController::class, 'update'])
+    ->name('proses-produksi.update');
