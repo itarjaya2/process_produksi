@@ -376,7 +376,7 @@
 
 <style>
     .table > :not(caption) > * > * {
-    padding: 1rem 0.30rem;
+    padding: 1rem 0.70rem;
 }
 
 /* #tblProduksi thead th {

@@ -75,7 +75,6 @@ class ProsesProduksiController extends Controller
         $data->upspk      = (float) str_replace('.', '', (string) $data->upspk);
         $data->jtdrik     = (float) str_replace('.', '', (string) $data->jtdrik);
         $data->jtpcs      = (float) str_replace('.', '', (string) $data->jtpcs);
-        
         $data->outputpcs = $data->outputdrik * $data->upspk;
         $data->total_pengerjaan_drik = $data->jtdrik + $data->outputdrik;
         $data->total_pengerjaan_pcs  = $data->jtpcs + $data->outputpcs;
@@ -95,13 +94,12 @@ class ProsesProduksiController extends Controller
 
     // Hitung total dari data yang tampil
     $total = [
-    'input'      => $data->sum(fn($x) => (int)$x->input),
-    'jtpcs'      => $data->sum(fn($x) => (int)$x->jtpcs),
-    'jtdrik'     => $data->sum(fn($x) => (int)$x->jtdrik),
-    'outputpcs'  => $data->sum(fn($x) => (int)$x->outputpcs),
-    'outputdrik' => $data->sum(fn($x) => (int)$x->outputdrik),
+    'input'      => $prosesProduksi->sum('input'),
+    'jtpcs'      => $prosesProduksi->sum('jtpcs'),
+    'jtdrik'     => $prosesProduksi->sum('jtdrik'),
+    'outputpcs'  => $prosesProduksi->sum('outputpcs'),
+    'outputdrik' => $prosesProduksi->sum('outputdrik'),
 ];
-
     // Kirim $daftarProses (bukan masterProses) ke view index
     return view('proses_produksi.index', compact('prosesProduksi', 'daftarProses', 'total'));
 }
@@ -120,7 +118,10 @@ class ProsesProduksiController extends Controller
     public function show($job_id)
     {
         // 1. AMBIL DATA KHUSUS JOB INI SAJA
-        $detailProses = ProsesProduksi::where('job', $job_id)->get();
+        $detailProses = ProsesProduksi::where('job', $job_id)
+        ->orderBy('proses')
+        ->orderBy('tanggal')
+        ->get();
 
         // Ambil nomor docket dari baris pertama (jika datanya ada)
         $docket = $detailProses->first()->designno ?? '-';
@@ -188,13 +189,13 @@ class ProsesProduksiController extends Controller
             ];
  
         }
-     $total = [
-    'input'      => $detailProses->sum(fn($x) => (float) $x->input),
-    'jtpcs'      => $detailProses->sum(fn($x) => (float) $x->jtpcs),
-    'jtdrik'     => $detailProses->sum(fn($x) => (float) $x->jtdrik),
-    'outputpcs'  => $detailProses->sum(fn($x) => (float) $x->outputpcs),
-    'outputdrik' => $detailProses->sum(fn($x) => (float) $x->outputdrik),
-];
+            $total = [
+            'input'      => $detailProses->sum(fn($x) => (float) $x->input),
+            'jtpcs'      => $detailProses->sum(fn($x) => (float) $x->jtpcs),
+            'jtdrik'     => $detailProses->sum(fn($x) => (float) $x->jtdrik),
+            'outputpcs'  => $detailProses->sum(fn($x) => (float) $x->outputpcs),
+            'outputdrik' => $detailProses->sum(fn($x) => (float) $x->outputdrik),
+            ];
 
         // 4. KIRIM DATA KE BLADE
         return view('proses_produksi.show', compact('rangkuman', 'detailProses', 'job_id', 'docket','total'));
