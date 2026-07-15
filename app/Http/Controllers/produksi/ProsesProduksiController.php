@@ -91,16 +91,14 @@ class ProsesProduksiController extends Controller
             }
         }
         if (! empty($filterOperator)) {
-            $operatorsList = preg_split('/[\s,;|]+/', trim($filterOperator));
-            $operatorsList = array_filter($operatorsList);
-            if (count($operatorsList) > 1) {
+            $operatorsList = preg_split('/[,;|]+/', trim($filterOperator));
+            $operatorsList = array_filter(array_map('trim', $operatorsList));
+            if (! empty($operatorsList)) {
                 $query->where(function ($q) use ($operatorsList) {
                     foreach ($operatorsList as $operatorItem) {
                         $q->orWhere('operator', 'like', '%'.$operatorItem.'%');
                     }
                 });
-            } elseif (count($operatorsList) == 1) {
-                $query->where('operator', 'like', '%'.$operatorsList[0].'%');
             }
         }
         if (! empty($filterTanggal)) {
@@ -120,16 +118,10 @@ class ProsesProduksiController extends Controller
             }
         }
         if (! empty($filterProduct)) {
-            $productsList = preg_split('/[\s,;|]+/', trim($filterProduct));
-            $productsList = array_filter($productsList);
-            if (count($productsList) > 1) {
-                $query->where(function ($q) use ($productsList) {
-                    foreach ($productsList as $productItem) {
-                        $q->orWhere('product', 'like', '%'.$productItem.'%');
-                    }
-                });
-            } elseif (count($productsList) == 1) {
-                $query->where('product', 'like', '%'.$productsList[0].'%');
+            $productsList = preg_split('/[,;|]+/', trim($filterProduct));
+            $productsList = array_filter(array_map('trim', $productsList));
+            if (! empty($productsList)) {
+                $query->whereIn('product', $productsList);
             }
         }
         // 2.Logika filter rentang tanggal
@@ -346,7 +338,7 @@ class ProsesProduksiController extends Controller
             $this->calculateDerivedValues($data);
 
             // Custom Show-page calculations for PACKING and SORTIR
-            $procName = strtoupper(trim((string)$data->proses));
+            $procName = strtoupper(trim((string) $data->proses));
             $input = (float) str_replace('.', '', (string) ($data->input ?? 0));
             $upspk = (float) str_replace('.', '', (string) ($data->upspk ?? 0));
 
@@ -392,14 +384,15 @@ class ProsesProduksiController extends Controller
 
             if ($prosesName === 'SORTIR') {
                 $dataPerProses = $detailProses->filter(function ($item) {
-                    $p = strtoupper(trim((string)$item->proses));
+                    $p = strtoupper(trim((string) $item->proses));
+
                     return $p === 'SORTIR' || $p === 'SORTPACKING';
                 });
                 foreach ($dataPerProses as $item) {
                     $itemInput = (float) str_replace('.', '', (string) ($item->input ?? 0));
                     $itemUpspk = (float) str_replace('.', '', (string) ($item->upspk ?? 0));
                     $itemJtpcs = (float) str_replace('.', '', (string) ($item->jtpcs ?? 0));
-                    
+
                     $itemJtdrik = $itemUpspk > 0 ? $itemJtpcs / $itemUpspk : 0;
                     $itemOutputpcs = $itemInput + $itemJtpcs;
                     $itemOutputdrik = $itemUpspk > 0 ? $itemOutputpcs / $itemUpspk : 0;
@@ -414,13 +407,14 @@ class ProsesProduksiController extends Controller
                 }
             } elseif ($prosesName === 'PACKING') {
                 $dataPerProses = $detailProses->filter(function ($item) {
-                    $p = strtoupper(trim((string)$item->proses));
+                    $p = strtoupper(trim((string) $item->proses));
+
                     return $p === 'PACKING' || $p === 'SORTPACKING';
                 });
                 foreach ($dataPerProses as $item) {
                     $itemInput = (float) str_replace('.', '', (string) ($item->input ?? 0));
                     $itemUpspk = (float) str_replace('.', '', (string) ($item->upspk ?? 0));
-                    
+
                     $itemOutputpcs = $itemInput;
                     $itemOutputdrik = $itemUpspk > 0 ? $itemInput / $itemUpspk : 0;
 
@@ -434,7 +428,7 @@ class ProsesProduksiController extends Controller
                 }
             } else {
                 $dataPerProses = $detailProses->filter(function ($item) use ($prosesName) {
-                    return strtoupper(trim((string)$item->proses)) === $prosesName;
+                    return strtoupper(trim((string) $item->proses)) === $prosesName;
                 });
                 $jam = $dataPerProses->sum('totaljam');
                 $jtdrik = $dataPerProses->sum('jtdrik');
@@ -829,7 +823,7 @@ class ProsesProduksiController extends Controller
             'operator' => 'operator',
         ];
 
-        if (!isset($allowedTypes[$type])) {
+        if (! isset($allowedTypes[$type])) {
             return response()->json([]);
         }
 

@@ -800,7 +800,8 @@
                         type,
                         badgeClass,
                         itemKey,
-                        icon
+                        icon,
+                        allowSpaces
                     } = config;
 
                     function renderBadges() {
@@ -918,7 +919,8 @@
 
                     // Keydown: space, comma, semicolon to chips
                     $(`#${inputId}`).on('keydown', function(e) {
-                        if (e.which === 188 || e.which === 186 || e.which === 32) { // comma, semicolon, space
+                        const isDelimiter = e.which === 188 || e.which === 186 || (!allowSpaces && e.which === 32);
+                        if (isDelimiter) { // comma, semicolon, space
                             const val = $(this).val().trim().replace(/[,;]+$/, '');
                             if (val) {
                                 e.preventDefault();
@@ -934,7 +936,8 @@
                         const clipboardData = e.originalEvent.clipboardData || window.clipboardData;
                         const pastedData = clipboardData.getData('Text');
                         if (pastedData) {
-                            const items = pastedData.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
+                            const regex = allowSpaces ? /[,;|]+/ : /[\s,;|]+/;
+                            const items = pastedData.split(regex).map(s => s.trim()).filter(Boolean);
                             if (items.length > 1) {
                                 e.preventDefault();
                                 items.forEach(function(item) {
@@ -985,7 +988,8 @@
                     $(`#${wrapperId}`).closest('form').on('submit', function() {
                         const typedVal = $(`#${inputId}`).val() ? $(`#${inputId}`).val().trim() : '';
                         if (typedVal) {
-                            const items = typedVal.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
+                            const regex = allowSpaces ? /[,;|]+/ : /[\s,;|]+/;
+                            const items = typedVal.split(regex).map(s => s.trim()).filter(Boolean);
                             items.forEach(function(item) {
                                 addItem(item);
                             });
@@ -1005,7 +1009,8 @@
                     type: 'job',
                     badgeClass: 'job-badge',
                     itemKey: 'job',
-                    icon: 'bx-briefcase'
+                    icon: 'bx-briefcase',
+                    allowSpaces: false
                 });
 
                 setupAutocompleteFilter({
@@ -1018,7 +1023,8 @@
                     type: 'designno',
                     badgeClass: 'docket-badge',
                     itemKey: 'designno',
-                    icon: 'bx-barcode'
+                    icon: 'bx-barcode',
+                    allowSpaces: false
                 });
 
                 setupAutocompleteFilter({
@@ -1031,7 +1037,8 @@
                     type: 'product',
                     badgeClass: 'product-badge',
                     itemKey: 'product',
-                    icon: 'bx-box'
+                    icon: 'bx-box',
+                    allowSpaces: true
                 });
 
                 setupAutocompleteFilter({
@@ -1044,7 +1051,8 @@
                     type: 'operator',
                     badgeClass: 'operator-badge',
                     itemKey: 'operator',
-                    icon: 'bx-user'
+                    icon: 'bx-user',
+                    allowSpaces: true
                 });
                 // filter header toggle
                 $('.header-filter-toggle').on('click', function(e) {
