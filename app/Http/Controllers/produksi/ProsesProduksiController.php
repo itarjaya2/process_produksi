@@ -200,9 +200,7 @@ class ProsesProduksiController extends Controller
             'outputdrik' => $prosesProduksi->sum(fn ($x) => (float) ($x->outputdrik ?? 0)),
         ];
 
-        return view('proses_produksi.index', compact('prosesProduksi', 'daftarProses', 'total'));
-
-        // return view('role.produksi.proses_produksi.index', compact('prosesProduksi', 'daftarProses', 'total'));
+        return view('role.produksi.proses_produksi.index', compact('prosesProduksi', 'daftarProses', 'total'));
     }
 
     public function create()
@@ -213,13 +211,13 @@ class ProsesProduksiController extends Controller
             ->orderBy('job')
             ->get();
 
-        return view('proses_produksi.create', compact('jobs'));
+        return view('role.produksi.proses_produksi.create', compact('jobs'));
     }
 
-    public function show(Request $request, $job_id)
+    public function show(Request $request)
     {
         // 1. CARI NOMOR DOCKET DARI JOB INI
-        $firstRecord = ProsesProduksi::where('job', $job_id)->first();
+        $firstRecord = ProsesProduksi::where('job')->first();
         if (! $firstRecord) {
             abort(404, 'Job tidak ditemukan.');
         }
@@ -242,7 +240,6 @@ class ProsesProduksiController extends Controller
                         ->distinct()
                         ->pluck('job')
                         ->toArray();
-
                     if (empty($jobsFound)) {
                         return redirect()->route('proses-produksi.show', $job_id)
                             ->with('error', "Tidak ada Job ID yang cocok dengan pencarian '{$sJob}'.");
@@ -462,7 +459,7 @@ class ProsesProduksiController extends Controller
         ];
 
         // 5. KIRIM DATA KE BLADE
-        return view('proses_produksi.show', compact('rangkuman', 'detailProses', 'job_id', 'docket', 'total', 'jobsToQuery'));
+        return view('role.produksi.proses_produksi.show', compact('rangkuman', 'detailProses', 'job_id', 'docket', 'total', 'jobsToQuery'));
     }
 
     public function inlineUpdate(Request $request)
@@ -712,103 +709,6 @@ class ProsesProduksiController extends Controller
 
             return back()->with('error', 'Gagal menyimpan data.');
         }
-    }
-
-    public function edit($id)
-    {
-        $prosesProduksi = ProsesProduksi::findOrFail($id);
-
-        return view('proses_produksi.edit', compact('prosesProduksi'));
-    }
-
-    public function update(Request $request, $id)
-    {
-        $prosesProduksi = ProsesProduksi::findOrFail($id);
-
-        $rules = [
-            'job' => 'nullable|string',
-            'tanggal' => 'nullable|string',
-            'product' => 'nullable|string',
-            'designno' => 'nullable|string',
-            'po' => 'nullable|string',
-            'qty' => 'nullable|string',
-            'palet' => 'nullable|string',
-            'proses' => 'required|string',
-            'mesin' => 'nullable|string',
-            'shift' => 'nullable|string',
-            'vendormat' => 'nullable|string',
-            'type' => 'nullable|string',
-            'operator' => 'nullable|string',
-            'jumlahtim' => 'nullable|string',
-            'toleransi' => 'nullable|string',
-            'pengawas' => 'nullable|string',
-            'shiftpengawas' => 'nullable|string',
-            'set' => 'nullable|string',
-            'run' => 'nullable|string',
-            'finish' => 'nullable|string',
-            'break' => 'nullable|string',
-            'input' => 'nullable|string',
-            'upspk' => 'nullable|string',
-            'target' => 'nullable|string',
-            'jtdrik' => 'nullable|string',
-            'jtpcs' => 'nullable|string',
-            'outputdrik' => 'nullable|string',
-            'karantina' => 'nullable|string',
-            'notok' => 'nullable|string',
-            'ok' => 'nullable|string',
-            // reject checkboxes
-            'warna' => 'nullable|string',
-            'banjir' => 'nullable|string',
-            'beset' => 'nullable|string',
-            'powder' => 'nullable|string',
-            'wb' => 'nullable|string',
-            'uvkasar' => 'nullable|string',
-            'uvmbleset' => 'nullable|string',
-            'tidakuv' => 'nullable|string',
-            'hotprint' => 'nullable|string',
-            'laminating' => 'nullable|string',
-            'laminasikurang' => 'nullable|string',
-            'laminasi' => 'nullable|string',
-            'tidakpresisi' => 'nullable|string',
-            'pecah' => 'nullable|string',
-            'emboss' => 'nullable|string',
-            'porforasi' => 'nullable|string',
-            'sobek' => 'nullable|string',
-            'lengket' => 'nullable|string',
-            'll' => 'nullable|string',
-            'noteoperator' => 'nullable|string',
-            'ket' => 'nullable|string',
-        ];
-
-        $validated = $request->validate($rules);
-
-        // Validation: JT Drik cannot be greater than Input
-        $prosesName = strtolower((string) ($validated['proses'] ?? $prosesProduksi->proses));
-        if ($prosesName !== 'lem') {
-            $inputVal = isset($validated['input']) ? (float) str_replace('.', '', (string) $validated['input']) : (float) $prosesProduksi->input;
-            $jtdrikVal = isset($validated['jtdrik']) ? (float) str_replace('.', '', (string) $validated['jtdrik']) : (float) $prosesProduksi->jtdrik;
-
-            if ($jtdrikVal > $inputVal) {
-                return back()->withErrors(['jtdrik' => 'JT Drik tidak boleh lebih besar dari Input.'])->withInput();
-            }
-        }
-
-        // Checkbox yang tidak dicentang tidak terkirim → set null / 0
-        $checkboxFields = [
-            'warna', 'banjir', 'beset', 'powder', 'wb', 'uvkasar', 'uvmbleset',
-            'tidakuv', 'hotprint', 'laminating', 'laminasikurang', 'laminasi',
-            'tidakpresisi', 'pecah', 'emboss', 'porforasi', 'sobek', 'lengket', 'll',
-        ];
-        foreach ($checkboxFields as $field) {
-            $validated[$field] = $request->has($field) ? '1' : null;
-        }
-
-        $prosesProduksi->update($validated);
-        $this->calculateDerivedValues($prosesProduksi);
-        $prosesProduksi->save();
-
-        return redirect()->route('proses-produksi.index')
-            ->with('success', 'Data berhasil diperbarui.');
     }
 
     public function searchSuggestions(Request $request)

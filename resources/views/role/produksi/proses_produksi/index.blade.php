@@ -12,6 +12,10 @@
                 <h4 class="fw-bold mb-0">Proses Produksi</h4>
                 <p class="text-muted mb-0 small">Kelola dan pantau seluruh data proses produksi</p>
             </div>
+            <a href="{{ route('proses-produksi.rangkuman') }}" class="btn btn-primary d-flex align-items-center gap-1">
+                <i class="bx bx-plus fs-5"></i>
+                Rangkuman
+            </a>
             <a href="{{ route('proses-produksi.create') }}" class="btn btn-primary d-flex align-items-center gap-1">
                 <i class="bx bx-plus fs-5"></i>
                 Tambah Data
@@ -379,15 +383,8 @@
                                             {{-- Compact row --}}
                                             <tr>
                                                 {{-- job --}}
-                                                <td>
-                                                    @if ($data->job)
-                                                        <a href="{{ route('proses-produksi.show', $data->job) }}"
-                                                            class="fw-semibold text-primary text-decoration-none">
-                                                            {{ $data->job }}
-                                                        </a>
-                                                    @else
-                                                        <span class="text-muted">-</span>
-                                                    @endif
+                                                <td class="small text-nowrap">
+                                                    {{ $data->job ?? '-' }}
                                                 </td>
                                                 <td class="small text-nowrap">
                                                     {{ $data->designno ?? '-' }}
@@ -919,7 +916,8 @@
 
                     // Keydown: space, comma, semicolon to chips
                     $(`#${inputId}`).on('keydown', function(e) {
-                        const isDelimiter = e.which === 188 || e.which === 186 || (!allowSpaces && e.which === 32);
+                        const isDelimiter = e.which === 188 || e.which === 186 || (!allowSpaces && e.which ===
+                            32);
                         if (isDelimiter) { // comma, semicolon, space
                             const val = $(this).val().trim().replace(/[,;]+$/, '');
                             if (val) {

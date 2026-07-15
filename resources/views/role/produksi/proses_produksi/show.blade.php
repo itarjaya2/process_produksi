@@ -549,15 +549,15 @@
         }
 
         /* #tblProduksi thead th {
-                                                    position: sticky;
-                                                    top: 70px;
-                                                    z-index: 1020;
-                                                    background: #fff;
-                                                }
+                                                        position: sticky;
+                                                        top: 70px;
+                                                        z-index: 1020;
+                                                        background: #fff;
+                                                    }
 
-                                                .table-light th{
-                                                    background: #f8f9fa !important;
-                                                } */
+                                                    .table-light th{
+                                                        background: #f8f9fa !important;
+                                                    } */
     </style>
 
     <script>
