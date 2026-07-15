@@ -38,19 +38,48 @@
                         (Job: {{ implode(', ', $jobsToQuery) }})</p>
                 </div>
                 <div class="d-flex align-items-center gap-3">
-                    <form action="{{ route('proses-produksi.show', $job_id) }}" method="GET" class="d-flex align-items-center gap-2">
-                        <div class="input-group input-group-merge">
-                            <span class="input-group-text"><i class="bx bx-search fs-6"></i></span>
-                            <input type="text" name="search_jobs" class="form-control form-control-sm"
-                                placeholder="Multi-job (misal: 260732, 260733)"
-                                value="{{ request()->query('search_jobs') }}" style="width: 250px;">
-                            @if(request()->query('search_jobs'))
-                                <a href="{{ route('proses-produksi.show', $job_id) }}" class="btn btn-sm btn-outline-secondary px-2 d-flex align-items-center">
-                                    <i class="bx bx-x fs-5"></i>
-                                </a>
-                            @endif
+                    <form action="{{ route('proses-produksi.show', $job_id) }}" method="GET"
+                        class="d-flex align-items-center gap-2">
+
+                        <div class="position-relative" style="width:320px">
+
+                            <div id="jobSearchWrapper"
+                                class="input-group input-group-merge flex-wrap align-items-center gap-1 border rounded-3 px-2 py-1 bg-white"
+                                style="min-height: 38px;">
+                                <span class="input-group-text border-0 bg-transparent px-1">
+                                    <i class="bx bx-search fs-6"></i>
+                                </span>
+
+                                <div id="selectedJobsContainer" class="d-flex flex-wrap gap-1 flex-grow-1">
+                                    <span id="selectedJobsPlaceholder" class="small text-muted">Pilih Job...</span>
+                                </div>
+
+                                <input type="text" id="searchJob" name="search_jobs"
+                                    class="form-control form-control-sm border-0 shadow-none" placeholder=""
+                                    autocomplete="off" value="" style="min-width: 90px; flex: 1 1 120px;">
+                            </div>
+
+                            <input type="hidden" id="searchJobsHidden" name="search_jobs"
+                                value="{{ request()->query('search_jobs') }}">
+
+                            <!-- Dropdown hasil pencarian -->
+                            <div id="jobSuggestions"
+                                class="list-group position-absolute w-100 shadow-sm border rounded-3 overflow-hidden bg-white d-none"
+                                style="z-index: 1055; top: calc(100% + 6px); max-height: 280px; overflow-y: auto;">
+                            </div>
+
                         </div>
-                        <button type="submit" class="btn btn-sm btn-primary">Cari</button>
+
+                        @if (request()->query('search_jobs'))
+                            <a href="{{ route('proses-produksi.show', $job_id) }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bx bx-x"></i>
+                            </a>
+                        @endif
+
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            Cari
+                        </button>
+
                     </form>
 
                     <a href="{{ route('proses-produksi.index') }}"
@@ -68,8 +97,9 @@
         {{-- Job Active Indicator --}}
         <div class="mt-4 mb-2 d-flex align-items-center flex-wrap gap-2">
             <span class="text-muted small fw-semibold">Job Active:</span>
-            @foreach($jobsToQuery as $activeJob)
-                <span class="badge bg-label-success px-3 py-2 fs-7 fw-bold border border-success border-opacity-25 rounded-pill">
+            @foreach ($jobsToQuery as $activeJob)
+                <span
+                    class="badge bg-label-success px-3 py-2 fs-7 fw-bold border border-success border-opacity-25 rounded-pill">
                     <i class="bx bx-briefcase me-1"></i> {{ $activeJob }}
                 </span>
             @endforeach
@@ -238,150 +268,178 @@
                             {{ $jobGroupKey ?: 'Tanpa Job' }}
                         </div>
                         <div>
-                            <i
-                                class="bx bx-chevron-down toggle-icon text-muted fs-5"></i>
+                            <i class="bx bx-chevron-down toggle-icon text-muted fs-5"></i>
                         </div>
                     </div>
                 </div>
 
                 {{-- Table container wrapper --}}
-                <div id="rows-job-{{ $clean_job_key }}" class="table-responsive {{ $is_active ? '' : 'd-none' }}">
-                    <table class="table table-sm table-hover mb-0 align-middle">
-                        <thead class="table-light text-uppercase small">
-                            <tr>
-                                <th>Job</th>
-                                <th>Docket</th>
-                                <th>Proses</th>
-                                <th>Produk</th>
-                                <th>Operator</th>
-                                <th style="width:10px">Tanggal</th>
-                                <th class="text-center">Upspk</th>
-                                <th class="text-center">Input</th>
-                                <th class="text-center">Jtdrik</th>
-                                <th class="text-center">Jtpcs</th>
-                                <th class="text-center">OutPCS</th>
-                                <th class="text-center">OutDrik</th>
-                                <th class="text-center pe-4" style="width:100px">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($items as $data)
-                                <tr>
-                                    <td>
-                                        @if ($data->job)
-                                            <a href="{{ route('proses-produksi.show', $data->job) }}"
-                                                class="fw-semibold text-primary text-decoration-none">
-                                                {{ $data->job }}
-                                            </a>
-                                        @else
-                                            <span class="text-muted">-</span>
-                                        @endif
-                                    </td>
-                                    <td class="small text-nowrap">
-                                        {{ $data->designno ?? '-' }}
-                                    </td>
-                                    <td>
-                                        @php
-                                            $paletWarna = ['primary', 'success', 'warning', 'info', 'danger', 'dark'];
-                                            $teks = $data->proses ?? 'default';
-                                            $indeksWarna = abs(crc32($teks)) % count($paletWarna);
-                                            $badgeColor = $paletWarna[$indeksWarna];
-                                        @endphp
-                                        <span class="badge bg-label-{{ $badgeColor }} fw-semibold">
-                                            {{ $data->proses ?? '-' }}
-                                        </span>
-                                    </td>
-                                    <td class="small text-nowrap">{{ $data->product ?? '-' }}</td>
-                                    <td class="small text-nowrap">{{ $data->operator ?? '-' }}</td>
-                                    <td class="small text-nowrap">
-                                        @if ($data->tanggal)
-                                            {{ strtoupper(substr(\Carbon\Carbon::parse($data->tanggal)->format('l'), 0, 4)) }}
-                                            - {{ \Carbon\Carbon::parse($data->tanggal)->format('d-m-y') }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td class="text-center fw-semibold">
-                                        {{ $data->upspk ?? '0' }}
-                                    </td>
-                                    <td class="text-center fw-semibold">
-                                        {{ $data->input ? number_format($data->input, 0, ',', '.') : '0' }}
-                                    </td>
-                                    <td class="small">
-                                        {{ $data->jtdrik ? number_format($data->jtdrik, 0, ',', '.') : '0' }}</td>
-                                    <td class="small">
-                                        {{ $data->jtpcs ? number_format($data->jtpcs, 0, ',', '.') : '0' }}
-                                    </td>
-                                    <td class="text-center fw-semibold">
-                                        {{ $data->outputpcs ? number_format($data->outputpcs, 0, ',', '.') : '0' }}
-                                    </td>
-                                    <td class="text-center fw-semibold">
-                                        {{ $data->outputdrik ? number_format($data->outputdrik, 0, ',', '.') : '0' }}
-                                    </td>
-                                    {{-- Toggle button — opens offcanvas --}}
-                                    <td class="text-center pe-4 d-flex gap-1">
-                                        <button type="button"
-                                            class="btn btn-sm btn-primary d-flex align-items-center gap-1 px-2 py-1"
-                                            title="Lihat semua detail" style="font-size:.75rem"
-                                            onclick="showDetail({{ json_encode([
-                                                'id' => $data->id,
-                                                'tanggal' => $data->tanggal ? strtolower(\Carbon\Carbon::parse($data->tanggal)->format('l - d - m - y')) : '-',
-                                                'job' => $data->job ?? '-',
-                                                'proses' => $data->proses ?? '-',
-                                                'product' => $data->product ?? '-',
-                                                'designno' => $data->designno ?? '-',
-                                                'operator' => $data->operator ?? '-',
-                                                'totaljam' => $data->totaljam ?? '0',
-                                                'shift' => $data->shift ?? '0',
-                                                'po' => $data->po ?? '0',
-                                                'input' => $data->input ?? '0',
-                                                'jtpcs' => $data->jtpcs ?? '0',
-                                                'jtdrik' => $data->jtdrik ?? '0',
-                                                'upspk' => $data->upspk ?? '0',
-                                                'outputpcs' => $data->outputpcs ?? '0',
-                                                'outputdrik' => $data->outputdrik ?? '0',
-                                                'total_pengerjaan_drik' => $data->total_pengerjaan_drik ?? '0',
-                                                'total_pengerjaan_pcs' => $data->total_pengerjaan_pcs ?? '0',
-                                            ]) }})">Detail
-                                            <i class="bx bx-show" style="font-size:.75rem"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                        <tfoot class="table-light fw-bold text-end">
-                            <tr>
-                                <td colspan="7" class="text-center">
-                                    GRAND TOTAL
-                                </td>
-                                <td>
-                                    {{ number_format($items->sum('input'), 0, ',', '.') }}
-                                </td>
-                                <td class="text-start">
-                                    {{ number_format($items->sum('jtdrik'), 0, ',', '.') }}
-                                </td>
-                                <td class="text-start">
-                                    {{ number_format($items->sum('jtpcs'), 0, ',', '.') }}
-                                </td>
-                                <td>
-                                    {{ number_format($items->sum('outputpcs'), 0, ',', '.') }}
-                                </td>
-                                <td>
-                                    {{ number_format($items->sum('outputdrik'), 0, ',', '.') }}
-                                </td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-        @empty
-            <div class="card border shadow-sm mt-3">
-                <div class="card-body py-5 text-center text-muted">
-                    <i class="bx bx-data fs-1 d-block mb-2 opacity-25"></i>
-                    Belum ada data proses produksi yang tersimpan.
-                </div>
-            </div>
+                <div id="rows-job-{{ $clean_job_key }}" class="{{ $is_active ? '' : 'd-none' }}">
+                    <div class="position-relative table-wrapper-show">
+                        <button type="button" class="scroll-overlay left show-scroll-button"
+                            data-target="#rows-job-{{ $clean_job_key }} .table-scroll-show" data-delta="-350">
+                            <i class="bx bx-chevron-left"></i>
+                        </button>
+                        <button type="button" class="scroll-overlay right show-scroll-button"
+                            data-target="#rows-job-{{ $clean_job_key }} .table-scroll-show" data-delta="350">
+                            <i class="bx bx-chevron-right"></i>
+                        </button>
+                        <div class="table-responsive table-scroll-show">
+                            <table class="table table-sm table-hover mb-0 align-middle">
+                                <thead class="table-light text-uppercase small">
+                                    <tr>
+                                        <th>Job</th>
+                                        <th>Docket</th>
+                                        <th>Proses</th>
+                                        <th>Produk</th>
+                                        <th>Operator</th>
+                                        <th style="width:10px">Tanggal</th>
+                                        <th class="text-center">Upspk</th>
+                                        <th class="text-center">Input</th>
+                                        <th class="text-center">Jtdrik</th>
+                                        <th class="text-center">Jtpcs</th>
+                                        <th class="text-center">OutPCS</th>
+                                        <th class="text-center">OutDrik</th>
+                                        <th class="text-center pe-4" style="width:100px">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($items as $data)
+                                        <tr>
+                                            <td>
+                                                @if ($data->job)
+                                                    <a href="{{ route('proses-produksi.show', $data->job) }}"
+                                                        class="fw-semibold text-primary text-decoration-none">
+                                                        {{ $data->job }}
+                                                    </a>
+                                                @else
+                                                    <span class="text-muted">-</span>
+                                                @endif
+                                            </td>
+                                            <td class="small text-nowrap">
+                                                {{ $data->designno ?? '-' }}
+                                            </td>
+                                            <td>
+                                                @php
+                                                    $paletWarna = [
+                                                        'primary',
+                                                        'success',
+                                                        'warning',
+                                                        'info',
+                                                        'danger',
+                                                        'dark',
+                                                    ];
+                                                    $teks = $data->proses ?? 'default';
+                                                    $indeksWarna = abs(crc32($teks)) % count($paletWarna);
+                                                    $badgeColor = $paletWarna[$indeksWarna];
+                                                @endphp
+                                                <span class="badge bg-label-{{ $badgeColor }} fw-semibold">
+                                                    {{ $data->proses ?? '-' }}
+                                                </span>
+                                            </td>
+                                            <td class="small text-nowrap">{{ $data->product ?? '-' }}</td>
+                                            <td class="small text-nowrap">{{ $data->operator ?? '-' }}</td>
+                                            <td class="small text-nowrap">
+                                                @if ($data->tanggal)
+                                                    {{ strtoupper(substr(\Carbon\Carbon::parse($data->tanggal)->format('l'), 0, 4)) }}
+                                                    - {{ \Carbon\Carbon::parse($data->tanggal)->format('d-m-y') }}
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
+                                            <td class="text-center fw-semibold">
+                                                {{ $data->upspk ?? '0' }}
+                                            </td>
+                                            <td class="text-center fw-semibold">
+                                                <span class="inline-edit-cell" data-id="{{ $data->id }}"
+                                                    data-field="input" data-value="{{ $data->input ?? 0 }}">
+                                                    {{ $data->input ? number_format($data->input, 0, ',', '.') : '0' }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center fw-semibold">
+                                                <span class="inline-edit-cell" data-id="{{ $data->id }}"
+                                                    data-field="jtdrik" data-value="{{ $data->jtdrik ?? 0 }}"
+                                                    data-editable="{{ strtolower($data->proses ?? '') === 'lem' ? '0' : '1' }}">
+                                                    {{ $data->jtdrik ? number_format($data->jtdrik, 0, ',', '.') : '0' }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center fw-semibold">
+                                                <span class="inline-edit-cell" data-id="{{ $data->id }}"
+                                                    data-field="jtpcs" data-value="{{ $data->jtpcs ?? 0 }}"
+                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'sortpacking']) ? '1' : '0' }}">
+                                                    {{ $data->jtpcs ? number_format($data->jtpcs, 0, ',', '.') : '0' }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center fw-semibold">
+                                                {{ $data->outputpcs ? number_format($data->outputpcs, 0, ',', '.') : '0' }}
+                                            </td>
+                                            <td class="text-center fw-semibold">
+                                                {{ $data->outputdrik ? number_format($data->outputdrik, 0, ',', '.') : '0' }}
+                                            </td>
+                                            {{-- Toggle button — opens offcanvas --}}
+                                            <td class="text-center pe-4 d-flex gap-1">
+                                                <button type="button"
+                                                    class="btn btn-sm btn-primary d-flex align-items-center gap-1 px-2 py-1"
+                                                    title="Lihat semua detail" style="font-size:.75rem"
+                                                    onclick="showDetail({{ json_encode([
+                                                        'id' => $data->id,
+                                                        'tanggal' => $data->tanggal ? strtolower(\Carbon\Carbon::parse($data->tanggal)->format('l - d - m - y')) : '-',
+                                                        'job' => $data->job ?? '-',
+                                                        'proses' => $data->proses ?? '-',
+                                                        'product' => $data->product ?? '-',
+                                                        'designno' => $data->designno ?? '-',
+                                                        'operator' => $data->operator ?? '-',
+                                                        'totaljam' => $data->totaljam ?? '0',
+                                                        'shift' => $data->shift ?? '0',
+                                                        'po' => $data->po ?? '0',
+                                                        'input' => $data->input ?? '0',
+                                                        'jtpcs' => $data->jtpcs ?? '0',
+                                                        'jtdrik' => $data->jtdrik ?? '0',
+                                                        'upspk' => $data->upspk ?? '0',
+                                                        'outputpcs' => $data->outputpcs ?? '0',
+                                                        'outputdrik' => $data->outputdrik ?? '0',
+                                                        'total_pengerjaan_drik' => $data->total_pengerjaan_drik ?? '0',
+                                                        'total_pengerjaan_pcs' => $data->total_pengerjaan_pcs ?? '0',
+                                                    ]) }})">Detail
+                                                    <i class="bx bx-show" style="font-size:.75rem"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="table-light fw-bold text-end">
+                                    <tr>
+                                        <td colspan="7" class="text-center">
+                                            GRAND TOTAL
+                                        </td>
+                                        <td>
+                                            {{ number_format($items->sum('input'), 0, ',', '.') }}
+                                        </td>
+                                        <td class="text-start">
+                                            {{ number_format($items->sum('jtdrik'), 0, ',', '.') }}
+                                        </td>
+                                        <td class="text-start">
+                                            {{ number_format($items->sum('jtpcs'), 0, ',', '.') }}
+                                        </td>
+                                        <td>
+                                            {{ number_format($items->sum('outputpcs'), 0, ',', '.') }}
+                                        </td>
+                                        <td>
+                                            {{ number_format($items->sum('outputdrik'), 0, ',', '.') }}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                @empty
+                    <div class="card border shadow-sm mt-3">
+                        <div class="card-body py-5 text-center text-muted">
+                            <i class="bx bx-data fs-1 d-block mb-2 opacity-25"></i>
+                            Belum ada data proses produksi yang tersimpan.
+                        </div>
+                    </div>
         @endforelse
 
 
@@ -410,24 +468,262 @@
             padding: 0.25rem 0.35rem !important;
         }
 
-        /* #tblProduksi thead th {
-                                position: sticky;
-                                top: 70px;
-                                z-index: 1020;
-                                background: #fff;
-                            }
+        .table-wrapper-show {
+            position: relative;
+            overflow: hidden;
+        }
 
-                            .table-light th{
-                                background: #f8f9fa !important;
-                            } */
+        .table-scroll-show {
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .table-scroll-show::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scroll-overlay {
+            position: absolute;
+            top: 4.2%;
+            bottom: 4.2%;
+            opacity: 1;
+            width: 36px;
+            border: none;
+            transition: opacity .25s ease, background-color .25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            color: white;
+            background: rgba(105, 108, 255, 0.45);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(8px);
+            cursor: pointer;
+            box-shadow: inset 0 0 0 1px rgba(105, 108, 255, .08);
+        }
+
+        .scroll-overlay:hover {
+            opacity: 1;
+            background: rgba(105, 108, 255, 0.7);
+        }
+
+        .scroll-overlay.left {
+            left: 0;
+            border-right: 1px solid rgba(0, 0, 0, .05);
+        }
+
+        .scroll-overlay.right {
+            right: 0;
+            border-left: 1px solid rgba(0, 0, 0, .05);
+        }
+
+        .scroll-overlay i {
+            font-size: 78px;
+        }
+
+        .inline-edit-cell {
+            cursor: pointer;
+            display: inline-block;
+            min-width: 70px;
+            border-bottom: 1px dashed #696cff;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+        }
+
+        .inline-edit-cell:hover {
+            color: #696cff;
+            border-bottom-style: solid;
+            background-color: rgba(105, 108, 255, 0.08);
+        }
+
+        .inline-edit-cell[data-editable="0"] {
+            cursor: not-allowed;
+            color: #89909b;
+            border-bottom: none;
+        }
+
+        .inline-edit-input {
+            min-width: 90px;
+            max-width: 110px;
+        }
+
+        /* #tblProduksi thead th {
+                                                    position: sticky;
+                                                    top: 70px;
+                                                    z-index: 1020;
+                                                    background: #fff;
+                                                }
+
+                                                .table-light th{
+                                                    background: #f8f9fa !important;
+                                                } */
     </style>
 
     <script>
         let offcanvasBs;
         const offcanvasBody = document.getElementById('offcanvasBody');
 
+        function showToast(message, type = 'success') {
+            const toastEl = document.getElementById('liveToast');
+            const toastBody = document.getElementById('toastMessage');
+            toastEl.className = 'toast align-items-center text-white border-0 bg-' + (type === 'error' || type ===
+                'danger' ? 'danger' : (type === 'warning' ? 'warning' : 'success'));
+            toastBody.textContent = message;
+            const toast = new bootstrap.Toast(toastEl, {
+                delay: 4000
+            });
+            toast.show();
+        }
+
+        function updateScrollButtons(wrapper) {
+            const parent = wrapper.closest('.table-wrapper-show');
+            if (!parent) {
+                return;
+            }
+            const btnLeft = parent.querySelector('.show-scroll-button.left');
+            const btnRight = parent.querySelector('.show-scroll-button.right');
+            if (!btnLeft || !btnRight) {
+                return;
+            }
+            btnLeft.classList.toggle('d-none', wrapper.scrollLeft <= 0);
+            btnRight.classList.toggle('d-none', wrapper.scrollLeft >= wrapper.scrollWidth - wrapper.clientWidth - 5);
+        }
+
+        function scrollShowTable(button) {
+            const targetSelector = button.dataset.target;
+            const delta = Number(button.dataset.delta || 0);
+            const wrapper = document.querySelector(targetSelector);
+            if (wrapper) {
+                wrapper.scrollBy({
+                    left: delta,
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        function initShowScrolls() {
+            document.querySelectorAll('.table-scroll-show').forEach(function(wrapper) {
+                updateScrollButtons(wrapper);
+                wrapper.addEventListener('scroll', function() {
+                    updateScrollButtons(wrapper);
+                });
+            });
+
+            document.querySelectorAll('.show-scroll-button').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    scrollShowTable(button);
+                });
+            });
+        }
+
+        function cancelInlineEdit(activeCell, activeValue) {
+            if (activeCell) {
+                $(activeCell).html(activeValue);
+            }
+        }
+
+        function saveInlineEdit($input) {
+            const id = $input.data('id');
+            const field = $input.data('field');
+            const value = $input.val();
+            const cell = $input.closest('.inline-edit-cell');
+
+            if (value === '' || isNaN(value)) {
+                showToast('Nilai harus berupa angka.', 'danger');
+                cancelInlineEdit(cell, cell.data('value'));
+                return;
+            }
+
+            $.ajax({
+                url: '{{ route('proses-produksi.inline-update') }}',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    id: id,
+                    field: field,
+                    value: value
+                },
+                success: function(response) {
+                    const values = response.values || {};
+                    const row = cell.closest('tr');
+
+                    cell.data('value', value);
+                    cell.text(parseFloat(value).toLocaleString('id-ID', {
+                        maximumFractionDigits: 0
+                    }));
+
+                    row.find('.inline-edit-cell').each(function() {
+                        const $span = $(this);
+                        const fieldName = $span.data('field');
+                        if (fieldName && values[fieldName] !== undefined) {
+                            $span.data('value', values[fieldName]);
+                            $span.text(parseFloat(values[fieldName]).toLocaleString('id-ID', {
+                                maximumFractionDigits: 0
+                            }));
+                        }
+                    });
+
+                    if (response.message) {
+                        showToast(response.message, 'success');
+                    }
+                },
+                error: function(xhr) {
+                    cancelInlineEdit(cell, cell.data('value'));
+                    const msg = xhr.responseJSON?.message || 'Gagal memperbarui data.';
+                    showToast(msg, 'danger');
+                }
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             offcanvasBs = new bootstrap.Offcanvas(document.getElementById('offcanvasDetail'));
+            initShowScrolls();
+
+            $(document).on('dblclick', '.inline-edit-cell', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const cell = $(this);
+                const field = cell.data('field');
+                const isEditable = cell.data('editable') === 1 || cell.data('editable') === '1';
+
+                if (field === 'jtpcs' && !isEditable) {
+                    return;
+                }
+
+                const activeCell = document.querySelector('.inline-edit-input') ? document.querySelector(
+                    '.inline-edit-input').closest('.inline-edit-cell') : null;
+                if (activeCell && activeCell !== this) {
+                    const activeValue = $(activeCell).data('value') ?? '';
+                    cancelInlineEdit(activeCell, activeValue);
+                }
+
+                const activeValue = cell.html();
+                const id = cell.data('id');
+                const value = cell.data('value') ?? '';
+
+                cell.html(
+                    `<input type="text" class="form-control form-control-sm inline-edit-input" data-id="${id}" data-field="${field}" value="${value}" />`
+                );
+                cell.find('input').focus().select();
+            });
+
+            $(document).on('keydown', '.inline-edit-input', function(e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    saveInlineEdit($(this));
+                }
+                if (e.which === 27) {
+                    e.preventDefault();
+                    cancelInlineEdit($(this).closest('.inline-edit-cell'), $(this).closest(
+                        '.inline-edit-cell').data('value'));
+                }
+            });
+
+            $(document).on('focusout', '.inline-edit-input', function() {
+                saveInlineEdit($(this));
+            });
         });
 
         function showDetail(d) {
@@ -577,6 +873,116 @@
                     $icon.removeClass('bx-chevron-down').addClass('bx-chevron-right');
                 }
             });
+        });
+
+        // Selected Jobs Management
+        function renderSelectedJobs() {
+            const selectedJobs = $('#searchJobsHidden').val().split(',').map(function(item) {
+                return item.trim();
+            }).filter(Boolean);
+
+            const $container = $('#selectedJobsContainer');
+            const $placeholder = $('#selectedJobsPlaceholder');
+
+            if (selectedJobs.length) {
+                $placeholder.hide();
+                $container.find('.job-badge').remove();
+
+                selectedJobs.forEach(function(job) {
+                    $('<span class="badge bg-label-primary rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 job-badge">')
+                        .append($('<span class="fw-semibold">').text(job))
+                        .append($('<i class="bx bx-x cursor-pointer" style="font-size: 12px;"></i>').on('click',
+                            function() {
+                                removeSelectedJob(job);
+                            }))
+                        .appendTo($container);
+                });
+            } else {
+                $container.find('.job-badge').remove();
+                $placeholder.show();
+            }
+        }
+
+        function removeSelectedJob(job) {
+            const selectedJobs = $('#searchJobsHidden').val().split(',').map(function(item) {
+                return item.trim();
+            }).filter(function(item) {
+                return item && item !== job;
+            });
+
+            $('#searchJobsHidden').val(selectedJobs.join(', '));
+            renderSelectedJobs();
+        }
+
+        function addSelectedJob(job) {
+            const selectedJobs = $('#searchJobsHidden').val().split(',').map(function(item) {
+                return item.trim();
+            }).filter(Boolean);
+
+            if (!selectedJobs.includes(job)) {
+                selectedJobs.push(job);
+            }
+
+            $('#searchJobsHidden').val(selectedJobs.join(', '));
+            $('#searchJob').val('');
+            renderSelectedJobs();
+        }
+
+        // search suggestions
+        $('#searchJob').on('keyup', function() {
+            let keyword = $(this).val().trim();
+            const $suggestions = $('#jobSuggestions');
+
+            if (keyword.length < 2) {
+                $suggestions.empty().addClass('d-none');
+                return;
+            }
+
+            $.ajax({
+                url: "{{ route('proses-produksi.search-suggestions') }}",
+                type: "GET",
+                data: {
+                    q: keyword
+                },
+                success: function(response) {
+                    let html = '';
+
+                    if (response.length) {
+                        response.forEach(function(item) {
+                            html += `
+                                <a href="#"
+                                    class="list-group-item list-group-item-action border-0 px-3 py-2 d-flex align-items-center gap-2 pilih-job"
+                                    data-job="${item.job}">
+                                    <i class="bx bx-briefcase text-primary"></i>
+                                    <span class="fw-semibold">${item.job}</span>
+                                </a>
+                            `;
+                        });
+                        $suggestions.html(html).removeClass('d-none');
+                    } else {
+                        $suggestions.empty().addClass('d-none');
+                    }
+                }
+            });
+        });
+
+        $(document).on('click', '.pilih-job', function(e) {
+            e.preventDefault();
+
+            const job = $(this).data('job');
+            addSelectedJob(job);
+            $('#jobSuggestions').empty().addClass('d-none');
+            $('#searchJob').focus();
+        });
+
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#jobSuggestions, #jobSearchWrapper').length) {
+                $('#jobSuggestions').empty().addClass('d-none');
+            }
+        });
+
+        $(document).ready(function() {
+            renderSelectedJobs();
         });
     </script>
 

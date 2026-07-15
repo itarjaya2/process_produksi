@@ -56,7 +56,7 @@
                         </p>
                         {{-- id --}}
                         <div class="row g-2">
-                            <div class="col-12 col-sm-4 col-lg-2">
+                            <div class="col-12 col-sm-4 col-lg-1">
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-transparent border-end-0 text-muted">
                                         <i class="bx bx-hash"></i>
@@ -67,47 +67,137 @@
                             </div>
                             {{-- no job --}}
                             <div class="col-12 col-sm-4 col-lg-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-transparent border-end-0 text-muted">
-                                        <i class="bx bx-briefcase"></i>
-                                    </span>
-                                    <input type="text" name="job" value="{{ request('job') }}" placeholder="No JOB"
-                                        class="form-control form-control-sm border-start-0 ps-0">
+                                <div class="position-relative">
+                                    <div id="jobSearchWrapper"
+                                        class="input-group input-group-sm flex-nowrap align-items-center bg-white"
+                                        style="border: 1px solid #d9dee3; border-radius: 0.375rem; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; height: 31px; overflow: hidden;">
+                                        <span class="input-group-text bg-transparent border-0 text-muted pe-1">
+                                            <i class="bx bx-briefcase"></i>
+                                        </span>
+                                        <div id="scrollableContainer"
+                                            class="d-flex align-items-center flex-grow-1 flex-nowrap"
+                                            style="overflow-x: auto; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none; height: 100%;">
+                                            <div id="selectedJobsContainer"
+                                                class="d-flex flex-nowrap align-items-center gap-1 py-1 ps-0"
+                                                style="min-width: 0; flex-shrink: 0;">
+                                                <span id="selectedJobsPlaceholder" class="small text-muted"
+                                                    style="font-size: 0.75rem; margin-left: 0.25rem;">No JOB</span>
+                                            </div>
+                                            <input type="text" id="searchJob"
+                                                class="form-control form-control-sm border-0 ps-1 bg-transparent"
+                                                placeholder="" autocomplete="off"
+                                                style="min-width: 50px; flex: 1 1 auto; font-size: 0.75rem; box-shadow: none; height: 100%; border: none;">
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="searchJobsHidden" name="job" value="{{ request('job') }}">
+                                    <!-- Dropdown hasil pencarian -->
+                                    <div id="jobSuggestions"
+                                        class="list-group position-absolute w-100 shadow-sm border rounded-3 overflow-hidden bg-white d-none"
+                                        style="z-index: 1055; top: calc(100% + 4px); max-height: 200px; overflow-y: auto;">
+                                    </div>
                                 </div>
                             </div>
                             {{-- docket --}}
                             <div class="col-12 col-sm-4 col-lg-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-transparent border-end-0 text-muted">
-                                        <i class="bx bx-barcode"></i>
-                                    </span>
-                                    <input type="text" name="designno" value="{{ request('designno') }}"
-                                        placeholder="Docket" class="form-control form-control-sm border-start-0 ps-0">
+                                <div class="position-relative">
+                                    <div id="docketSearchWrapper"
+                                        class="input-group input-group-sm flex-nowrap align-items-center bg-white"
+                                        style="border: 1px solid #d9dee3; border-radius: 0.375rem; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; height: 31px; overflow: hidden;">
+                                        <span class="input-group-text bg-transparent border-0 text-muted pe-1">
+                                            <i class="bx bx-barcode"></i>
+                                        </span>
+                                        <div id="docketScrollableContainer"
+                                            class="d-flex align-items-center flex-grow-1 flex-nowrap"
+                                            style="overflow-x: auto; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none; height: 100%;">
+                                            <div id="selectedDocketsContainer"
+                                                class="d-flex flex-nowrap align-items-center gap-1 py-1 ps-0"
+                                                style="min-width: 0; flex-shrink: 0;">
+                                                <span id="selectedDocketsPlaceholder" class="small text-muted"
+                                                    style="font-size: 0.75rem; margin-left: 0.25rem;">Docket</span>
+                                            </div>
+                                            <input type="text" id="searchDocket"
+                                                class="form-control form-control-sm border-0 ps-1 bg-transparent"
+                                                placeholder="" autocomplete="off"
+                                                style="min-width: 50px; flex: 1 1 auto; font-size: 0.75rem; box-shadow: none; height: 100%; border: none;">
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="searchDocketsHidden" name="designno"
+                                        value="{{ request('designno') }}">
+                                    <!-- Dropdown hasil pencarian -->
+                                    <div id="docketSuggestions"
+                                        class="list-group position-absolute w-100 shadow-sm border rounded-3 overflow-hidden bg-white d-none"
+                                        style="z-index: 1055; top: calc(100% + 4px); max-height: 200px; overflow-y: auto;">
+                                    </div>
                                 </div>
                             </div>
                             {{-- product --}}
                             <div class="col-12 col-sm-4 col-lg-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-transparent border-end-0 text-muted">
-                                        <i class="bx bx-box"></i>
-                                    </span>
-                                    <input type="text" name="product" value="{{ request('product') }}"
-                                        placeholder="Produk" class="form-control form-control-sm border-start-0 ps-0">
+                                <div class="position-relative">
+                                    <div id="productSearchWrapper"
+                                        class="input-group input-group-sm flex-nowrap align-items-center bg-white"
+                                        style="border: 1px solid #d9dee3; border-radius: 0.375rem; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; height: 31px; overflow: hidden;">
+                                        <span class="input-group-text bg-transparent border-0 text-muted pe-1">
+                                            <i class="bx bx-box"></i>
+                                        </span>
+                                        <div id="productScrollableContainer"
+                                            class="d-flex align-items-center flex-grow-1 flex-nowrap"
+                                            style="overflow-x: auto; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none; height: 100%;">
+                                            <div id="selectedProductsContainer"
+                                                class="d-flex flex-nowrap align-items-center gap-1 py-1 ps-0"
+                                                style="min-width: 0; flex-shrink: 0;">
+                                                <span id="selectedProductsPlaceholder" class="small text-muted"
+                                                    style="font-size: 0.75rem; margin-left: 0.25rem;">Produk</span>
+                                            </div>
+                                            <input type="text" id="searchProduct"
+                                                class="form-control form-control-sm border-0 ps-1 bg-transparent"
+                                                placeholder="" autocomplete="off"
+                                                style="min-width: 50px; flex: 1 1 auto; font-size: 0.75rem; box-shadow: none; height: 100%; border: none;">
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="searchProductsHidden" name="product"
+                                        value="{{ request('product') }}">
+                                    <!-- Dropdown hasil pencarian -->
+                                    <div id="productSuggestions"
+                                        class="list-group position-absolute w-100 shadow-sm border rounded-3 overflow-hidden bg-white d-none"
+                                        style="z-index: 1055; top: calc(100% + 4px); max-height: 200px; overflow-y: auto;">
+                                    </div>
                                 </div>
                             </div>
                             {{-- operator --}}
                             <div class="col-12 col-sm-4 col-lg-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-transparent border-end-0 text-muted">
-                                        <i class="bx bx-user"></i>
-                                    </span>
-                                    <input type="text" name="operator" value="{{ request('operator') }}"
-                                        placeholder="Nama Operator"
-                                        class="form-control form-control-sm border-start-0 ps-0">
+                                <div class="position-relative">
+                                    <div id="operatorSearchWrapper"
+                                        class="input-group input-group-sm flex-nowrap align-items-center bg-white"
+                                        style="border: 1px solid #d9dee3; border-radius: 0.375rem; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; height: 31px; overflow: hidden;">
+                                        <span class="input-group-text bg-transparent border-0 text-muted pe-1">
+                                            <i class="bx bx-user"></i>
+                                        </span>
+                                        <div id="operatorScrollableContainer"
+                                            class="d-flex align-items-center flex-grow-1 flex-nowrap"
+                                            style="overflow-x: auto; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none; height: 100%;">
+                                            <div id="selectedOperatorsContainer"
+                                                class="d-flex flex-nowrap align-items-center gap-1 py-1 ps-0"
+                                                style="min-width: 0; flex-shrink: 0;">
+                                                <span id="selectedOperatorsPlaceholder" class="small text-muted"
+                                                    style="font-size: 0.75rem; margin-left: 0.25rem;">Nama Operator</span>
+                                            </div>
+                                            <input type="text" id="searchOperator"
+                                                class="form-control form-control-sm border-0 ps-1 bg-transparent"
+                                                placeholder="" autocomplete="off"
+                                                style="min-width: 50px; flex: 1 1 auto; font-size: 0.75rem; box-shadow: none; height: 100%; border: none;">
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="searchOperatorsHidden" name="operator"
+                                        value="{{ request('operator') }}">
+                                    <!-- Dropdown hasil pencarian -->
+                                    <div id="operatorSuggestions"
+                                        class="list-group position-absolute w-100 shadow-sm border rounded-3 overflow-hidden bg-white d-none"
+                                        style="z-index: 1055; top: calc(100% + 4px); max-height: 200px; overflow-y: auto;">
+                                    </div>
                                 </div>
                             </div>
                             {{-- proses --}}
-                            <div class="col-12 col-sm-6 col-lg-2">
+                            <div class="col-12 col-sm-4 col-lg-1">
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-transparent border-end-0 text-muted">
                                         <i class="bx bx-cog"></i>
@@ -124,25 +214,28 @@
                                     </select>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="row g-2 mt-2">
                             {{-- tanggal --}}
-                            <div class="col-12 col-lg-4">
+                            <div class="col-12 col-sm-6 col-lg-2">
                                 <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-transparent">
+                                    <span class="input-group-text bg-transparent border-end-0 text-muted">
                                         <i class="bx bx-calendar"></i>
                                     </span>
+
                                     <input type="date" name="start_date" value="{{ request('start_date') }}"
-                                        class="form-control" placeholder="Dari Tanggal">
+                                        class="form-control border-start-0">
+
                                     <span class="input-group-text bg-light">
                                         s/d
                                     </span>
+
                                     <input type="date" name="end_date" value="{{ request('end_date') }}"
-                                        class="form-control" placeholder="Sampai Tanggal">
+                                        class="form-control">
                                 </div>
                             </div>
+
                         </div>
+
+
                     </div>
 
                     {{-- ── Tombol aksi ────────────────────────────────── --}}
@@ -216,7 +309,7 @@
         @endif
 
         {{-- Main Table Card --}}
-        <div class="card mb-4 border-0 shadow-sm bg-light">
+        <div class="card mb-4 border-0 shadow-sm bg-light" id="mainTableCard">
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-0">
                     <div class="position-relative table-wrapper">
@@ -234,12 +327,43 @@
                                 <table class="table table-sm table-hover mb-0 align-middle" id="tblProduksi">
                                     <thead class="table-light text-uppercase small">
                                         <tr>
-                                            <th>Job</th>
-                                            <th>Docket</th>
-                                            <th>Proses</th>
-                                            <th>Produk</th>
-                                            <th>Operator</th>
-                                            <th style="width:10px">Tanggal</th>
+                                            @php
+                                                $curSort = request()->query('sort');
+                                                $curDir = request()->query('dir', 'desc');
+
+                                                function _sortHeader($key, $label, $curSort, $curDir)
+                                                {
+                                                    $isActive = $curSort == $key;
+                                                    $dirToggle = $isActive
+                                                        ? ($curDir == 'asc'
+                                                            ? 'desc'
+                                                            : 'asc')
+                                                        : 'asc';
+                                                    // determine icon: if active and asc -> up, if active and desc -> down, else down (inactive)
+                                                    if ($isActive && $curDir == 'asc') {
+                                                        $icon = 'bx-chevron-up';
+                                                        $activeClass = 'active';
+                                                    } elseif ($isActive && $curDir == 'desc') {
+                                                        $icon = 'bx-chevron-down';
+                                                        $activeClass = 'active';
+                                                    } else {
+                                                        $icon = 'bx-chevron-down';
+                                                        $activeClass = 'inactive';
+                                                    }
+
+                                                    $html = "<a href=\"#\" class=\"ajax-sort text-decoration-none d-inline-flex align-items-center gap-1\" data-sort=\"{$key}\" data-dir=\"{$dirToggle}\">";
+                                                    $html .= "<span class=\"me-1\">{$label}</span>";
+                                                    $html .= "<i class=\"bx {$icon} sort-icon {$activeClass} ms-1\"></i>";
+                                                    $html .= '</a>';
+                                                    return $html;
+                                                }
+                                            @endphp
+                                            <th>{!! _sortHeader('job', 'Job', $curSort, $curDir) !!}</th>
+                                            <th>{!! _sortHeader('docket', 'Docket', $curSort, $curDir) !!}</th>
+                                            <th>{!! _sortHeader('proses', 'Proses', $curSort, $curDir) !!}</th>
+                                            <th>{!! _sortHeader('product', 'Produk', $curSort, $curDir) !!}</th>
+                                            <th>{!! _sortHeader('operator', 'Operator', $curSort, $curDir) !!}</th>
+                                            <th style="width:10px">{!! _sortHeader('tanggal', 'Tanggal', $curSort, $curDir) !!}</th>
                                             <th class="text-center">Upspk</th>
                                             <th class="text-center">Input</th>
                                             <th class="text-center">Jtdrik</th>
@@ -270,7 +394,6 @@
                                                 </td>
                                                 <td>
                                                     @php
-                                                        // 1. Daftar warna badge khas Sneat Bootstrap
                                                         $paletWarna = [
                                                             'primary',
                                                             'success',
@@ -279,22 +402,16 @@
                                                             'danger',
                                                             'dark',
                                                         ];
-
-                                                        // 2. Ubah teks proses menjadi indeks angka tetap (konsisten)
                                                         $teks = $data->proses ?? 'default';
                                                         $indeksWarna = abs(crc32($teks)) % count($paletWarna);
-
-                                                        // 3. Ambil warna terpilih
                                                         $badgeColor = $paletWarna[$indeksWarna];
                                                     @endphp
-
                                                     <span class="badge bg-label-{{ $badgeColor }} fw-semibold">
                                                         {{ $data->proses ?? '-' }}
                                                     </span>
                                                 </td>
                                                 <td class="small text-nowrap">{{ $data->product ?? '-' }}</td>
                                                 <td class="small text-nowrap">{{ $data->operator ?? '-' }}</td>
-                                                {{-- tanggal --}}
                                                 <td class="small text-nowrap">
                                                     @if ($data->tanggal)
                                                         {{ strtoupper(substr(\Carbon\Carbon::parse($data->tanggal)->format('l'), 0, 4)) }}
@@ -337,8 +454,7 @@
                                                 </td>
                                                 {{-- Toggle button — opens offcanvas --}}
                                                 <td class="text-center pe-4 d-flex gap-1">
-                                                    <button
-                                                        type="button"
+                                                    <button type="button"
                                                         class="btn btn-sm btn-primary d-flex align-items-center gap-1 px-2 py-1"
                                                         title="Lihat semua detail" style="font-size:.75rem"
                                                         onclick="showDetail({{ json_encode([
@@ -451,6 +567,27 @@
 
         {{-- css --}}
         <style>
+            .sort-icon {
+                font-size: 18px;
+                line-height: 14px;
+                opacity: 1;
+            }
+
+            .sort-icon.active {
+                opacity: 1;
+                color: #0d6efd;
+                transform: translateY(-1px);
+            }
+
+            .sort-icon.inactive {
+                opacity: 1;
+                color: #0d6efd;
+            }
+
+            .ajax-sort {
+                cursor: pointer;
+            }
+
             .table> :not(caption)>*>* {
                 padding: 1rem 0.70rem;
             }
@@ -471,9 +608,8 @@
 
             .scroll-overlay {
                 position: absolute;
-                top: 0;
-                bottom: 0;
-                opacity: 0.8;
+                top: 5.5%;
+                bottom: 5.5%;
                 width: 36px;
                 border: none;
                 transition: opacity .25s ease, background-color .25s ease;
@@ -482,18 +618,12 @@
                 justify-content: center;
                 z-index: 20;
                 color: white;
-                background: rgba(105, 108, 255, 0.45);
-                backdrop-filter: blur(3px);
-                -webkit-backdrop-filter: blur(8px);
+                background: #373BFF;
                 /* Safari */
                 cursor: pointer;
                 box-shadow: inset 0 0 0 1px rgba(105, 108, 255, .08);
             }
 
-            .scroll-overlay:hover {
-                opacity: 1;
-                background: rgba(105, 108, 255, 0.7);
-            }
 
             .scroll-overlay.left {
                 left: 0;
@@ -568,6 +698,10 @@
                 min-width: 90px;
                 max-width: 110px;
             }
+
+            #scrollableContainer::-webkit-scrollbar {
+                display: none;
+            }
         </style>
 
         {{-- js --}}
@@ -612,40 +746,305 @@
 
             // funciton jquery untuk inline edit
             $(function() {
-                // auto-merge job search values
-                $('form').on('submit', function(e) {
-                    const $jobInput = $('input[name="job"]');
-                    if ($jobInput.length) {
-                        const newValue = $jobInput.val().trim();
-                        const oldValue = '{{ request('job') }}'.trim();
+                // AJAX sorting handler: intercept clicks on headers with .ajax-sort
+                $(document).on('click', '.ajax-sort', function(e) {
+                    e.preventDefault();
+                    const sort = $(this).data('sort');
+                    const dir = $(this).data('dir');
 
-                        if (newValue && oldValue && newValue !== oldValue) {
-                            const oldList = oldValue.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
-                            const newList = newValue.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
+                    // Build query preserving existing querystring except sort/dir
+                    const params = new URLSearchParams(window.location.search);
+                    params.set('sort', sort);
+                    params.set('dir', dir);
 
-                            if (newList.length === 1 && !oldList.includes(newList[0])) {
-                                const combined = [...oldList, newList[0]];
-                                $jobInput.val(combined.join(', '));
+                    const url = window.location.pathname + '?' + params.toString();
+
+                    // Fetch sorted table via AJAX and replace #mainTableCard
+                    $.get(url, function(html) {
+                        // Parse returned HTML and replace table card content
+                        const newDoc = new DOMParser().parseFromString(html, 'text/html');
+                        const newCard = newDoc.getElementById('mainTableCard');
+                        if (newCard) {
+                            $('#mainTableCard').replaceWith($(newCard));
+                            // Update URL without reloading
+                            window.history.pushState({}, '', url);
+
+                            // Rebind scroll buttons for the new table container
+                            const w = document.getElementById('tabelContainer');
+                            const bl = document.getElementById('btnScrollLeft');
+                            const br = document.getElementById('btnScrollRight');
+                            if (w && bl && br) {
+                                const update = function() {
+                                    bl.classList.toggle('d-none', w.scrollLeft <= 0);
+                                    br.classList.toggle('d-none', w.scrollLeft >= w.scrollWidth - w
+                                        .clientWidth - 5);
+                                };
+                                w.removeEventListener('scroll', updateScrollButton);
+                                w.addEventListener('scroll', update);
+                                update();
                             }
+                        }
+                    }).fail(function() {
+                        showToast('Gagal memuat data terurut.', 'danger');
+                    });
+                });
+                // Reusable Autocomplete & Multi-select filter setup
+                function setupAutocompleteFilter(config) {
+                    const {
+                        wrapperId,
+                        containerId,
+                        placeholderId,
+                        inputId,
+                        hiddenId,
+                        suggestionsId,
+                        type,
+                        badgeClass,
+                        itemKey,
+                        icon
+                    } = config;
+
+                    function renderBadges() {
+                        const val = $(`#${hiddenId}`).val() || '';
+                        const selectedItems = val.split(',').map(function(item) {
+                            return item.trim();
+                        }).filter(Boolean);
+
+                        const $container = $(`#${containerId}`);
+                        const $placeholder = $(`#${placeholderId}`);
+
+                        $container.find(`.${badgeClass}`).remove();
+
+                        if (selectedItems.length) {
+                            $placeholder.hide();
+
+                            selectedItems.forEach(function(item) {
+                                $('<span class="badge bg-label-primary rounded-pill px-2 py-0.5 d-inline-flex align-items-center gap-1 ' +
+                                        badgeClass +
+                                        '" style="font-size: 0.7rem; line-height: 1.2; flex-shrink: 0; white-space: nowrap;">'
+                                    )
+                                    .append($('<span class="fw-semibold">').text(item))
+                                    .append($('<i class="bx bx-x cursor-pointer" style="font-size: 11px;"></i>')
+                                        .on(
+                                            'click',
+                                            function(e) {
+                                                e.stopPropagation();
+                                                removeItem(item);
+                                            }))
+                                    .appendTo($container);
+                            });
+                        } else {
+                            $placeholder.show();
+                        }
+
+                        // Auto scroll container to the right
+                        const container = $container.closest('.d-flex')[0];
+                        if (container) {
+                            setTimeout(() => {
+                                container.scrollLeft = container.scrollWidth;
+                            }, 50);
                         }
                     }
 
-                    // gabung docket input
-                    const $docketInput = $('input[name="designno"]');
-                    if ($docketInput.length) {
-                        const newValue = $docketInput.val().trim();
-                        const oldValue = '{{ request('designno') }}'.trim();
+                    function removeItem(item) {
+                        const val = $(`#${hiddenId}`).val() || '';
+                        const selectedItems = val.split(',').map(function(i) {
+                            return i.trim();
+                        }).filter(function(i) {
+                            return i && i !== item;
+                        });
 
-                        if (newValue && oldValue && newValue !== oldValue) {
-                            const oldList = oldValue.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
-                            const newList = newValue.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
+                        $(`#${hiddenId}`).val(selectedItems.join(', '));
+                        renderBadges();
+                    }
 
-                            if (newList.length === 1 && !oldList.includes(newList[0])) {
-                                const combined = [...oldList, newList[0]];
-                                $docketInput.val(combined.join(', '));
+                    function addItem(item) {
+                        const val = $(`#${hiddenId}`).val() || '';
+                        const selectedItems = val.split(',').map(function(i) {
+                            return i.trim();
+                        }).filter(Boolean);
+
+                        if (!selectedItems.includes(item)) {
+                            selectedItems.push(item);
+                        }
+
+                        $(`#${hiddenId}`).val(selectedItems.join(', '));
+                        renderBadges();
+                    }
+
+                    // Render badges initially
+                    renderBadges();
+
+                    // Keyup autocomplete suggestions
+                    $(`#${inputId}`).on('keyup', function(e) {
+                        if (e.which === 13) {
+                            return; // Let form submit/enter handle
+                        }
+                        let keyword = $(this).val().trim();
+                        const $suggestions = $(`#${suggestionsId}`);
+
+                        if (keyword.length < 2) {
+                            $suggestions.empty().addClass('d-none');
+                            return;
+                        }
+
+                        $.ajax({
+                            url: "{{ route('proses-produksi.search-suggestions') }}",
+                            type: "GET",
+                            data: {
+                                q: keyword,
+                                type: type
+                            },
+                            success: function(response) {
+                                let html = '';
+
+                                if (response.length) {
+                                    response.forEach(function(item) {
+                                        html += `
+                                            <a href="#"
+                                                class="list-group-item list-group-item-action border-0 px-3 py-2 d-flex align-items-center gap-2 pilih-${type}"
+                                                data-value="${item[itemKey]}">
+                                                <i class="bx ${icon} text-primary" style="font-size: 0.85rem;"></i>
+                                                <span class="fw-semibold" style="font-size: 0.8rem;">${item[itemKey]}</span>
+                                            </a>
+                                        `;
+                                    });
+                                    $suggestions.html(html).removeClass('d-none');
+                                } else {
+                                    $suggestions.empty().addClass('d-none');
+                                }
+                            }
+                        });
+                    });
+
+                    // Keydown: space, comma, semicolon to chips
+                    $(`#${inputId}`).on('keydown', function(e) {
+                        if (e.which === 188 || e.which === 186 || e.which === 32) { // comma, semicolon, space
+                            const val = $(this).val().trim().replace(/[,;]+$/, '');
+                            if (val) {
+                                e.preventDefault();
+                                addItem(val);
+                                $(this).val('');
+                                $(`#${suggestionsId}`).empty().addClass('d-none');
                             }
                         }
-                    }
+                    });
+
+                    // Paste support
+                    $(`#${inputId}`).on('paste', function(e) {
+                        const clipboardData = e.originalEvent.clipboardData || window.clipboardData;
+                        const pastedData = clipboardData.getData('Text');
+                        if (pastedData) {
+                            const items = pastedData.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
+                            if (items.length > 1) {
+                                e.preventDefault();
+                                items.forEach(function(item) {
+                                    addItem(item);
+                                });
+                                $(this).val('');
+                                $(`#${suggestionsId}`).empty().addClass('d-none');
+                            }
+                        }
+                    });
+
+                    // Suggestion item click
+                    $(document).on('click', `.pilih-${type}`, function(e) {
+                        e.preventDefault();
+                        const val = $(this).data('value');
+                        addItem(val);
+                        $(`#${suggestionsId}`).empty().addClass('d-none');
+                        $(`#${inputId}`).val('').focus();
+                    });
+
+                    $(document).on('click', function(e) {
+                        if (!$(e.target).closest(`#${suggestionsId}, #${wrapperId}`).length) {
+                            $(`#${suggestionsId}`).empty().addClass('d-none');
+                        }
+                    });
+
+                    // Focus/blur styling
+                    $(`#${inputId}`).on('focus', function() {
+                        $(`#${wrapperId}`).css({
+                            'border-color': '#86b7fe',
+                            'box-shadow': '0 0 0 0.25rem rgba(13, 110, 253, 0.25)'
+                        });
+                    }).on('blur', function() {
+                        $(`#${wrapperId}`).css({
+                            'border-color': '',
+                            'box-shadow': ''
+                        });
+                    });
+
+                    // Wrapper click focuses input
+                    $(`#${wrapperId}`).on('click', function(e) {
+                        if (e.target.id !== inputId && !$(e.target).closest(`.${badgeClass}`).length) {
+                            $(`#${inputId}`).focus();
+                        }
+                    });
+
+                    // Form submit check
+                    $(`#${wrapperId}`).closest('form').on('submit', function() {
+                        const typedVal = $(`#${inputId}`).val() ? $(`#${inputId}`).val().trim() : '';
+                        if (typedVal) {
+                            const items = typedVal.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
+                            items.forEach(function(item) {
+                                addItem(item);
+                            });
+                            $(`#${inputId}`).val('');
+                        }
+                    });
+                }
+
+                // Initialize autocomplete filters for Job, Docket, Product, and Operator
+                setupAutocompleteFilter({
+                    wrapperId: 'jobSearchWrapper',
+                    containerId: 'selectedJobsContainer',
+                    placeholderId: 'selectedJobsPlaceholder',
+                    inputId: 'searchJob',
+                    hiddenId: 'searchJobsHidden',
+                    suggestionsId: 'jobSuggestions',
+                    type: 'job',
+                    badgeClass: 'job-badge',
+                    itemKey: 'job',
+                    icon: 'bx-briefcase'
+                });
+
+                setupAutocompleteFilter({
+                    wrapperId: 'docketSearchWrapper',
+                    containerId: 'selectedDocketsContainer',
+                    placeholderId: 'selectedDocketsPlaceholder',
+                    inputId: 'searchDocket',
+                    hiddenId: 'searchDocketsHidden',
+                    suggestionsId: 'docketSuggestions',
+                    type: 'designno',
+                    badgeClass: 'docket-badge',
+                    itemKey: 'designno',
+                    icon: 'bx-barcode'
+                });
+
+                setupAutocompleteFilter({
+                    wrapperId: 'productSearchWrapper',
+                    containerId: 'selectedProductsContainer',
+                    placeholderId: 'selectedProductsPlaceholder',
+                    inputId: 'searchProduct',
+                    hiddenId: 'searchProductsHidden',
+                    suggestionsId: 'productSuggestions',
+                    type: 'product',
+                    badgeClass: 'product-badge',
+                    itemKey: 'product',
+                    icon: 'bx-box'
+                });
+
+                setupAutocompleteFilter({
+                    wrapperId: 'operatorSearchWrapper',
+                    containerId: 'selectedOperatorsContainer',
+                    placeholderId: 'selectedOperatorsPlaceholder',
+                    inputId: 'searchOperator',
+                    hiddenId: 'searchOperatorsHidden',
+                    suggestionsId: 'operatorSuggestions',
+                    type: 'operator',
+                    badgeClass: 'operator-badge',
+                    itemKey: 'operator',
+                    icon: 'bx-user'
                 });
                 // filter header toggle
                 $('.header-filter-toggle').on('click', function(e) {

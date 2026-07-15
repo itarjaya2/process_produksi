@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\produksi;
 
+use App\Http\Controllers\Controller;
 use App\Models\ProsesProduksi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -30,6 +31,16 @@ class ProsesProduksiController extends Controller
             $record->outputpcs = $record->outputdrik * $upspk;
             $record->total_pengerjaan_drik = $record->jtdrik + $record->outputdrik;
             $record->total_pengerjaan_pcs = $record->jtpcs + $record->outputpcs;
+
+            return $record;
+        }
+        if ($prosesName === 'sortpacking') {
+            // input, jtdrik, jtpcs berasal dari database
+            $record->outputpcs = $input;
+            $record->outputdrik = $upspk > 0 ? $record->outputpcs / $upspk : 0;
+
+            $record->total_pengerjaan_drik = $record->outputdrik;
+            $record->total_pengerjaan_pcs = $record->outputpcs;
 
             return $record;
         }
@@ -80,7 +91,17 @@ class ProsesProduksiController extends Controller
             }
         }
         if (! empty($filterOperator)) {
-            $query->where('operator', 'like', '%'.$filterOperator.'%');
+            $operatorsList = preg_split('/[\s,;|]+/', trim($filterOperator));
+            $operatorsList = array_filter($operatorsList);
+            if (count($operatorsList) > 1) {
+                $query->where(function ($q) use ($operatorsList) {
+                    foreach ($operatorsList as $operatorItem) {
+                        $q->orWhere('operator', 'like', '%'.$operatorItem.'%');
+                    }
+                });
+            } elseif (count($operatorsList) == 1) {
+                $query->where('operator', 'like', '%'.$operatorsList[0].'%');
+            }
         }
         if (! empty($filterTanggal)) {
             $query->whereDate('tanggal', $filterTanggal);
@@ -99,7 +120,17 @@ class ProsesProduksiController extends Controller
             }
         }
         if (! empty($filterProduct)) {
-            $query->where('product', 'like', '%'.$filterProduct.'%');
+            $productsList = preg_split('/[\s,;|]+/', trim($filterProduct));
+            $productsList = array_filter($productsList);
+            if (count($productsList) > 1) {
+                $query->where(function ($q) use ($productsList) {
+                    foreach ($productsList as $productItem) {
+                        $q->orWhere('product', 'like', '%'.$productItem.'%');
+                    }
+                });
+            } elseif (count($productsList) == 1) {
+                $query->where('product', 'like', '%'.$productsList[0].'%');
+            }
         }
         // 2.Logika filter rentang tanggal
         if (! empty($startDate) && ! empty($endDate)) {
@@ -113,7 +144,24 @@ class ProsesProduksiController extends Controller
             $query->whereDate('tanggal', '<=', $endDate);
         }
 
-        $query->orderBy('id', 'desc');
+        // Sorting support
+        $allowedSorts = [
+            'job' => 'job',
+            'docket' => 'designno',
+            'proses' => 'proses',
+            'product' => 'product',
+            'operator' => 'operator',
+            'tanggal' => 'tanggal',
+        ];
+
+        $sort = $request->query('sort');
+        $dir = strtolower($request->query('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        if ($sort && isset($allowedSorts[$sort])) {
+            $query->orderBy($allowedSorts[$sort], $dir);
+        } else {
+            $query->orderBy('id', 'desc');
+        }
 
         // Bagian ini sudah sangat tepat karena pakai ->appends($request->query())
         $prosesProduksi = $query->paginate(15)->appends($request->query());
@@ -149,7 +197,7 @@ class ProsesProduksiController extends Controller
             ->pluck('proses');
 
         // Ambil data
-        $data = $query->latest()->get();
+        $data = $query->get();
 
         // Hitung total dari data yang tampil
         $total = [
@@ -160,8 +208,9 @@ class ProsesProduksiController extends Controller
             'outputdrik' => $prosesProduksi->sum(fn ($x) => (float) ($x->outputdrik ?? 0)),
         ];
 
-        // Kirim $daftarProses (bukan masterProses) ke view index
         return view('proses_produksi.index', compact('prosesProduksi', 'daftarProses', 'total'));
+
+        // return view('role.produksi.proses_produksi.index', compact('prosesProduksi', 'daftarProses', 'total'));
     }
 
     public function create()
@@ -241,12 +290,41 @@ class ProsesProduksiController extends Controller
         }
 
         // 3. AMBIL DATA HANYA UNTUK JOB YANG DIPILIH / HASIL PENCARIAN
-        $detailProses = ProsesProduksi::whereIn('job', $jobsToQuery)
-            ->orderBy('proses')
-            ->orderBy('tanggal')
-            ->get();
+        $allowedSorts = [
+            'job' => 'job',
+            'docket' => 'designno',
+            'proses' => 'proses',
+            'product' => 'product',
+            'operator' => 'operator',
+            'tanggal' => 'tanggal',
+        ];
 
-        // 3. HITUNG ATRIBUT VIRTUAL (ON-THE-FLY) UNTUK SEMUA REKORD
+        $sort = $request->query('sort');
+        $dir = strtolower($request->query('dir', 'asc')) === 'asc' ? 'asc' : 'desc';
+
+        $detailQuery = ProsesProduksi::whereIn('job', $jobsToQuery);
+
+        if ($sort && isset($allowedSorts[$sort])) {
+            $detailQuery->orderBy($allowedSorts[$sort], $dir);
+        } else {
+            $detailOrder = [
+                'PRINT', 'SORTIR CETAK', 'WATERBASE', 'HOCK', 'HOTPRINT',
+                'LAMINASI', 'LAMINATING', 'EMBOSS', 'DIECUT', 'CUTTING',
+                'PRETEL', 'LEM', 'LEM SETENGAH JADI', 'SORTIR', 'PACKING',
+            ];
+            $caseSql = 'CASE UPPER(proses) ';
+            foreach ($detailOrder as $index => $processName) {
+                $caseSql .= "WHEN ? THEN {$index} ";
+            }
+            $caseSql .= 'ELSE '.count($detailOrder).' END';
+
+            $detailQuery->orderByRaw($caseSql, $detailOrder)
+                ->orderBy('tanggal', 'desc');
+        }
+
+        $detailProses = $detailQuery->get();
+
+        // 3. HITUNG ATRIBUT VIRTUAL
         foreach ($detailProses as $data) {
             $totalJam = 0;
 
@@ -266,6 +344,32 @@ class ProsesProduksiController extends Controller
             $data->totaljam = max(0, round($totalJam, 2));
 
             $this->calculateDerivedValues($data);
+
+            // Custom Show-page calculations for PACKING and SORTIR
+            $procName = strtoupper(trim((string)$data->proses));
+            $input = (float) str_replace('.', '', (string) ($data->input ?? 0));
+            $upspk = (float) str_replace('.', '', (string) ($data->upspk ?? 0));
+
+            if ($procName === 'PACKING') {
+                $data->outputdrik = $upspk > 0 ? $input / $upspk : 0;
+                $data->outputpcs = $input;
+                $data->total_pengerjaan_drik = $data->outputdrik;
+                $data->total_pengerjaan_pcs = $data->outputpcs;
+            } elseif ($procName === 'SORTIR') {
+                $jtpcs = (float) str_replace('.', '', (string) ($data->jtpcs ?? 0));
+                $data->jtdrik = $upspk > 0 ? $jtpcs / $upspk : 0;
+                $data->outputpcs = $input + $jtpcs;
+                $data->outputdrik = $upspk > 0 ? $data->outputpcs / $upspk : 0;
+                $data->total_pengerjaan_drik = $data->outputdrik;
+                $data->total_pengerjaan_pcs = $data->outputpcs;
+            } elseif ($procName === 'SORTPACKING') {
+                $jtpcs = (float) str_replace('.', '', (string) ($data->jtpcs ?? 0));
+                $data->jtdrik = $upspk > 0 ? $jtpcs / $upspk : 0;
+                $data->outputpcs = (2 * $input) + $jtpcs;
+                $data->outputdrik = $upspk > 0 ? $data->outputpcs / $upspk : 0;
+                $data->total_pengerjaan_drik = $data->outputdrik;
+                $data->total_pengerjaan_pcs = $data->outputpcs;
+            }
         }
 
         // 4. BUAT TABEL RANGKUMAN (DOCKET-WIDE)
@@ -278,20 +382,78 @@ class ProsesProduksiController extends Controller
         $rangkuman = [];
 
         foreach ($masterProses as $prosesName) {
-            // Filter data yang sudah dihitung di atas, khusus untuk proses ini
-            $dataPerProses = $detailProses->filter(function ($item) use ($prosesName) {
-                return strtoupper($item->proses) == $prosesName;
-            });
+            $jam = 0;
+            $jtdrik = 0;
+            $jtpcs = 0;
+            $outputdrik = 0;
+            $outputpcs = 0;
+            $total_pengerjaan_drik = 0;
+            $total_pengerjaan_pcs = 0;
+
+            if ($prosesName === 'SORTIR') {
+                $dataPerProses = $detailProses->filter(function ($item) {
+                    $p = strtoupper(trim((string)$item->proses));
+                    return $p === 'SORTIR' || $p === 'SORTPACKING';
+                });
+                foreach ($dataPerProses as $item) {
+                    $itemInput = (float) str_replace('.', '', (string) ($item->input ?? 0));
+                    $itemUpspk = (float) str_replace('.', '', (string) ($item->upspk ?? 0));
+                    $itemJtpcs = (float) str_replace('.', '', (string) ($item->jtpcs ?? 0));
+                    
+                    $itemJtdrik = $itemUpspk > 0 ? $itemJtpcs / $itemUpspk : 0;
+                    $itemOutputpcs = $itemInput + $itemJtpcs;
+                    $itemOutputdrik = $itemUpspk > 0 ? $itemOutputpcs / $itemUpspk : 0;
+
+                    $jam += (float) ($item->totaljam ?? 0);
+                    $jtdrik += $itemJtdrik;
+                    $jtpcs += $itemJtpcs;
+                    $outputdrik += $itemOutputdrik;
+                    $outputpcs += $itemOutputpcs;
+                    $total_pengerjaan_drik += $itemOutputdrik;
+                    $total_pengerjaan_pcs += $itemOutputpcs;
+                }
+            } elseif ($prosesName === 'PACKING') {
+                $dataPerProses = $detailProses->filter(function ($item) {
+                    $p = strtoupper(trim((string)$item->proses));
+                    return $p === 'PACKING' || $p === 'SORTPACKING';
+                });
+                foreach ($dataPerProses as $item) {
+                    $itemInput = (float) str_replace('.', '', (string) ($item->input ?? 0));
+                    $itemUpspk = (float) str_replace('.', '', (string) ($item->upspk ?? 0));
+                    
+                    $itemOutputpcs = $itemInput;
+                    $itemOutputdrik = $itemUpspk > 0 ? $itemInput / $itemUpspk : 0;
+
+                    $jam += (float) ($item->totaljam ?? 0);
+                    $jtdrik += 0;
+                    $jtpcs += 0;
+                    $outputdrik += $itemOutputdrik;
+                    $outputpcs += $itemOutputpcs;
+                    $total_pengerjaan_drik += $itemOutputdrik;
+                    $total_pengerjaan_pcs += $itemOutputpcs;
+                }
+            } else {
+                $dataPerProses = $detailProses->filter(function ($item) use ($prosesName) {
+                    return strtoupper(trim((string)$item->proses)) === $prosesName;
+                });
+                $jam = $dataPerProses->sum('totaljam');
+                $jtdrik = $dataPerProses->sum('jtdrik');
+                $jtpcs = $dataPerProses->sum('jtpcs');
+                $outputdrik = $dataPerProses->sum('outputdrik');
+                $outputpcs = $dataPerProses->sum('outputpcs');
+                $total_pengerjaan_drik = $dataPerProses->sum('total_pengerjaan_drik');
+                $total_pengerjaan_pcs = $dataPerProses->sum('total_pengerjaan_pcs');
+            }
 
             $rangkuman[] = [
                 'proses' => $prosesName,
-                'jam' => $dataPerProses->sum('totaljam'),
-                'jt_drik' => $dataPerProses->sum('jtdrik'),
-                'jt_pcs' => $dataPerProses->sum('jtpcs'),
-                'output_drik' => $dataPerProses->sum('outputdrik'),
-                'output_pcs' => $dataPerProses->sum('outputpcs'),
-                'total_pengerjaan_drik' => $dataPerProses->sum('total_pengerjaan_drik'),
-                'total_pengerjaan_pcs' => $dataPerProses->sum('total_pengerjaan_pcs'),
+                'jam' => $jam,
+                'jt_drik' => $jtdrik,
+                'jt_pcs' => $jtpcs,
+                'output_drik' => $outputdrik,
+                'output_pcs' => $outputpcs,
+                'total_pengerjaan_drik' => $total_pengerjaan_drik,
+                'total_pengerjaan_pcs' => $total_pengerjaan_pcs,
                 'selisih_drik' => 0,
                 'selisih_pcs' => 0,
             ];
@@ -376,6 +538,8 @@ class ProsesProduksiController extends Controller
                 'jtpcs' => (float) $record->jtpcs,
                 'outputdrik' => (float) $record->outputdrik,
                 'outputpcs' => (float) $record->outputpcs,
+                'total_pengerjaan_drik' => (float) $record->total_pengerjaan_drik,
+                'total_pengerjaan_pcs' => (float) $record->total_pengerjaan_pcs,
             ],
         ]);
     }
@@ -647,8 +811,45 @@ class ProsesProduksiController extends Controller
 
         $prosesProduksi->update($validated);
         $this->calculateDerivedValues($prosesProduksi);
+        $prosesProduksi->save();
 
         return redirect()->route('proses-produksi.index')
             ->with('success', 'Data berhasil diperbarui.');
+    }
+
+    public function searchSuggestions(Request $request)
+    {
+        $keyword = trim((string) $request->input('q', ''));
+        $type = trim((string) $request->input('type', 'job'));
+
+        $allowedTypes = [
+            'job' => 'job',
+            'designno' => 'designno',
+            'product' => 'product',
+            'operator' => 'operator',
+        ];
+
+        if (!isset($allowedTypes[$type])) {
+            return response()->json([]);
+        }
+
+        $column = $allowedTypes[$type];
+
+        $query = ProsesProduksi::query()
+            ->select($column)
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->distinct()
+            ->orderBy($column);
+
+        if ($keyword !== '') {
+            $query->where($column, 'like', "%{$keyword}%");
+        }
+
+        $results = $query->limit(10)->get();
+
+        return response()->json($results->map(function ($item) use ($column) {
+            return [$column => $item->{$column}];
+        })->values());
     }
 }

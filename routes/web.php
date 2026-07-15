@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\ProsesProduksiController;
+use App\Http\Controllers\produksi\ProsesProduksiController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -13,6 +13,7 @@ Route::post('/proses-produksi', [ProsesProduksiController::class, 'store'])
     ->name('proses-produksi.store');
 
 Route::get('/proses-produksi/create', [ProsesProduksiController::class, 'create'])->name('proses-produksi.create');
+Route::get('/proses-produksi/search-suggestions', [ProsesProduksiController::class, 'searchSuggestions'])->name('proses-produksi.search-suggestions');
 // Route untuk melihat detail berdasarkan nomor job
 Route::get('/proses-produksi/job/{job_id}', [ProsesProduksiController::class, 'show'])->name('proses-produksi.show');
 Route::match(['post', 'patch'], '/proses-produksi/inline-update', [ProsesProduksiController::class, 'inlineUpdate'])->name('proses-produksi.inline-update');
