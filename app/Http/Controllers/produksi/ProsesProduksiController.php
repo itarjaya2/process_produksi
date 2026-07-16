@@ -156,7 +156,7 @@ class ProsesProduksiController extends Controller
         }
 
         // Bagian ini sudah sangat tepat karena pakai ->appends($request->query())
-        $prosesProduksi = $query->paginate(15)->appends($request->query());
+        $prosesProduksi = $query->paginate(9)->appends($request->query());
 
         foreach ($prosesProduksi as $data) {
             $totalJam = 0;
@@ -312,10 +312,10 @@ class ProsesProduksiController extends Controller
                 ->orderBy('tanggal', 'desc');
         }
 
-        $detailProses = $detailQuery->get();
+        $allDetailProses = $detailQuery->get();
 
-        // 3. HITUNG ATRIBUT VIRTUAL
-        foreach ($detailProses as $data) {
+        // Anonymous function to handle calculations for virtual/derived attributes
+        $calculateItem = function ($data) {
             $totalJam = 0;
 
             if (! empty($data->finish) && (! empty($data->set) || ! empty($data->run))) {
@@ -360,6 +360,17 @@ class ProsesProduksiController extends Controller
                 $data->total_pengerjaan_drik = $data->outputdrik;
                 $data->total_pengerjaan_pcs = $data->outputpcs;
             }
+        };
+
+        // 3. HITUNG ATRIBUT VIRTUAL UNTUK SEMUA REKOR (agar rangkuman & grand total akurat)
+        foreach ($allDetailProses as $data) {
+            $calculateItem($data);
+        }
+
+        // Paginate detailProses (9 records per page)
+        $detailProses = $detailQuery->paginate(9)->appends($request->query());
+        foreach ($detailProses as $data) {
+            $calculateItem($data);
         }
 
         // 4. BUAT TABEL RANGKUMAN (DOCKET-WIDE)
@@ -381,7 +392,7 @@ class ProsesProduksiController extends Controller
             $total_pengerjaan_pcs = 0;
 
             if ($prosesName === 'SORTIR') {
-                $dataPerProses = $detailProses->filter(function ($item) {
+                $dataPerProses = $allDetailProses->filter(function ($item) {
                     $p = strtoupper(trim((string) $item->proses));
 
                     return $p === 'SORTIR' || $p === 'SORTPACKING';
@@ -404,7 +415,7 @@ class ProsesProduksiController extends Controller
                     $total_pengerjaan_pcs += $itemOutputpcs;
                 }
             } elseif ($prosesName === 'PACKING') {
-                $dataPerProses = $detailProses->filter(function ($item) {
+                $dataPerProses = $allDetailProses->filter(function ($item) {
                     $p = strtoupper(trim((string) $item->proses));
 
                     return $p === 'PACKING' || $p === 'SORTPACKING';
@@ -425,7 +436,7 @@ class ProsesProduksiController extends Controller
                     $total_pengerjaan_pcs += $itemOutputpcs;
                 }
             } else {
-                $dataPerProses = $detailProses->filter(function ($item) use ($prosesName) {
+                $dataPerProses = $allDetailProses->filter(function ($item) use ($prosesName) {
                     return strtoupper(trim((string) $item->proses)) === $prosesName;
                 });
                 $jam = $dataPerProses->sum('totaljam');
@@ -452,11 +463,11 @@ class ProsesProduksiController extends Controller
         }
 
         $total = [
-            'input' => $detailProses->sum(fn ($x) => (float) ($x->input ?? 0)),
-            'jtpcs' => $detailProses->sum(fn ($x) => (float) ($x->jtpcs ?? 0)),
-            'jtdrik' => $detailProses->sum(fn ($x) => (float) ($x->jtdrik ?? 0)),
-            'outputpcs' => $detailProses->sum(fn ($x) => (float) ($x->outputpcs ?? 0)),
-            'outputdrik' => $detailProses->sum(fn ($x) => (float) ($x->outputdrik ?? 0)),
+            'input' => $allDetailProses->sum(fn ($x) => (float) ($x->input ?? 0)),
+            'jtpcs' => $allDetailProses->sum(fn ($x) => (float) ($x->jtpcs ?? 0)),
+            'jtdrik' => $allDetailProses->sum(fn ($x) => (float) ($x->jtdrik ?? 0)),
+            'outputpcs' => $allDetailProses->sum(fn ($x) => (float) ($x->outputpcs ?? 0)),
+            'outputdrik' => $allDetailProses->sum(fn ($x) => (float) ($x->outputdrik ?? 0)),
         ];
 
         // 5. KIRIM DATA KE BLADE
@@ -465,19 +476,125 @@ class ProsesProduksiController extends Controller
 
     public function inlineUpdate(Request $request)
     {
-        $allowedFields = ['input', 'jtdrik', 'jtpcs'];
+        $allowedFields = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift', 'operator', 'set', 'run', 'finish', 'tanggal'];
+        $stringFields = ['operator', 'set', 'run', 'finish', 'tanggal'];
+
+        $valueRules = 'required';
+        if (in_array($request->field, ['set', 'run', 'finish'], true)) {
+            $valueRules = 'nullable|string';
+        } elseif (in_array($request->field, $stringFields, true)) {
+            $valueRules = 'required|string';
+        } else {
+            $valueRules = 'required|numeric';
+        }
 
         $request->validate([
-            'id' => 'required|integer|exists:proses_produksis,id',
+            'id'    => 'required|integer|exists:proses_produksis,id',
             'field' => 'required|string|in:'.implode(',', $allowedFields),
-            'value' => 'required|numeric',
+            'value' => $valueRules,
         ]);
 
         $record = ProsesProduksi::findOrFail($request->id);
         $field = $request->field;
-        $numericValue = (float) $request->input('value');
+        $value = $request->input('value');
         $prosesName = strtolower((string) ($record->proses ?? ''));
         $saveField = $field;
+
+        // Custom Validation: Tanggal
+        if ($field === 'tanggal') {
+            try {
+                Carbon::parse($value);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Format Tanggal tidak valid.',
+                ], 422);
+            }
+        }
+
+        // Custom Validation: Set, Run, Finish
+        if (in_array($field, ['set', 'run', 'finish'], true)) {
+            $parsedVal = null;
+            if (!empty($value) && $value !== '-') {
+                try {
+                    $parsedVal = Carbon::parse($value);
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Format waktu tidak valid.',
+                    ], 422);
+                }
+            }
+
+            // Fetch existing dates if available
+            $existingSet = !empty($record->set) && $record->set !== '-' ? Carbon::parse($record->set) : null;
+            $existingRun = !empty($record->run) && $record->run !== '-' ? Carbon::parse($record->run) : null;
+            $existingFinish = !empty($record->finish) && $record->finish !== '-' ? Carbon::parse($record->finish) : null;
+
+            // Set and Run cannot both be empty
+            if ($field === 'set' && $parsedVal === null) {
+                if ($existingRun === null) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Set dan Run tidak boleh keduanya kosong. Minimal salah satu wajib diisi.',
+                    ], 422);
+                }
+            }
+
+            if ($field === 'run' && $parsedVal === null) {
+                if ($existingSet === null) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Set dan Run tidak boleh keduanya kosong. Minimal salah satu wajib diisi.',
+                    ], 422);
+                }
+            }
+
+            if ($field === 'set' && $parsedVal !== null) {
+                if ($existingRun !== null && $parsedVal->greaterThan($existingRun)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Nilai Set tidak boleh lebih besar dari Run (' . $existingRun->format('d-m-Y H:i') . ').',
+                    ], 422);
+                }
+                if ($existingFinish !== null && $parsedVal->greaterThan($existingFinish)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Nilai Set tidak boleh lebih besar dari Finish (' . $existingFinish->format('d-m-Y H:i') . ').',
+                    ], 422);
+                }
+            }
+
+            if ($field === 'run' && $parsedVal !== null) {
+                if ($existingSet !== null && $parsedVal->lessThan($existingSet)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Nilai Run tidak boleh lebih kecil dari Set (' . $existingSet->format('d-m-Y H:i') . ').',
+                    ], 422);
+                }
+                if ($existingFinish !== null && $parsedVal->greaterThan($existingFinish)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Nilai Run tidak boleh lebih besar dari Finish (' . $existingFinish->format('d-m-Y H:i') . ').',
+                    ], 422);
+                }
+            }
+
+            if ($field === 'finish' && $parsedVal !== null) {
+                if ($existingSet !== null && $parsedVal->lessThan($existingSet)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Nilai Finish tidak boleh lebih kecil dari Set (' . $existingSet->format('d-m-Y H:i') . ').',
+                    ], 422);
+                }
+                if ($existingRun !== null && $parsedVal->lessThan($existingRun)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Nilai Finish tidak boleh lebih kecil dari Run (' . $existingRun->format('d-m-Y H:i') . ').',
+                    ], 422);
+                }
+            }
+        }
 
         if ($field === 'jtdrik' && $prosesName === 'lem') {
             return response()->json([
@@ -498,7 +615,8 @@ class ProsesProduksiController extends Controller
         }
 
         // Validation: JT Drik cannot be greater than Input
-        if ($prosesName !== 'lem') {
+        if ($prosesName !== 'lem' && !in_array($field, $stringFields, true)) {
+            $numericValue = (float) $value;
             if ($field === 'jtdrik' && $numericValue > $record->input) {
                 return response()->json([
                     'success' => false,
@@ -513,24 +631,44 @@ class ProsesProduksiController extends Controller
             }
         }
 
-        DB::transaction(function () use ($record, $saveField, $numericValue) {
-            $record->{$saveField} = $numericValue;
+        DB::transaction(function () use ($record, $saveField, $value, $stringFields) {
+            $record->{$saveField} = in_array($saveField, $stringFields, true) ? (empty($value) || $value === '-' ? null : $value) : (float) $value;
             $record->save();
         });
 
         $this->calculateDerivedValues($record);
 
+        // Hitung totaljam dari set/run/finish (sama seperti logika di index())
+        $totalJam = 0;
+        if (!empty($record->finish) && (!empty($record->set) || !empty($record->run))) {
+            $waktuMulai = Carbon::parse(!empty($record->set) ? $record->set : $record->run);
+            $waktuFinish = Carbon::parse($record->finish);
+            $selisihMenit = $waktuMulai->diffInMinutes($waktuFinish);
+            $totalJam = $selisihMenit / 60;
+            if (strtoupper($record->break) === 'TRUE' || $record->break == 1) {
+                $totalJam -= 1;
+            }
+        }
+        $record->totaljam = max(0, round($totalJam, 2));
+
         return response()->json([
             'success' => true,
             'message' => 'Data berhasil diperbarui.',
-            'value' => number_format($numericValue, 0, ',', '.'),
-            'values' => [
-                'input' => (float) $record->input,
-                'jtdrik' => (float) $record->jtdrik,
-                'jtpcs' => (float) $record->jtpcs,
-                'outputdrik' => (float) $record->outputdrik,
-                'outputpcs' => (float) $record->outputpcs,
-                'total_pengerjaan_drik' => (float) $record->total_pengerjaan_drik,
+            'value'   => in_array($field, $stringFields) ? $value : number_format((float) $value, 0, ',', '.'),
+            'values'  => [
+                'input'                 => (float) $record->input,
+                'jtdrik'               => (float) $record->jtdrik,
+                'jtpcs'                => (float) $record->jtpcs,
+                'upspk'                => (float) $record->upspk,
+                'shift'                => (float) $record->shift,
+                'operator'             => $record->operator,
+                'set'                  => $record->set,
+                'run'                  => $record->run,
+                'finish'               => $record->finish,
+                'totaljam'             => (float) $record->totaljam,
+                'outputdrik'           => (float) $record->outputdrik,
+                'outputpcs'            => (float) $record->outputpcs,
+                'total_pengerjaan_drik'=> (float) $record->total_pengerjaan_drik,
                 'total_pengerjaan_pcs' => (float) $record->total_pengerjaan_pcs,
             ],
         ]);

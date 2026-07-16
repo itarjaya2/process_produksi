@@ -37,6 +37,7 @@
                     <p class="text-muted mb-0 small">Rekap seluruh proses produksi untuk Design No {{ $docket }}
                         (Job: {{ implode(', ', $jobsToQuery) }})</p>
                 </div>
+                {{-- search --}}
                 <div class="d-flex align-items-center gap-3">
                     <form action="{{ route('proses-produksi.show', $job_id) }}" method="GET"
                         class="d-flex align-items-center gap-2">
@@ -44,19 +45,19 @@
                         <div class="position-relative" style="width:320px">
 
                             <div id="jobSearchWrapper"
-                                class="input-group input-group-merge flex-wrap align-items-center gap-1 border rounded-3 px-2 py-1 bg-white"
-                                style="min-height: 38px;">
-                                <span class="input-group-text border-0 bg-transparent px-1">
+                                class="input-group input-group-merge align-items-center border rounded-3 px-2 py-1 bg-white"
+                                style="height: 38px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -ms-overflow-style: none;">
+                                <span class="input-group-text border-0 bg-transparent px-1" style="position: sticky; left: 0; background: #fff; z-index: 2;">
                                     <i class="bx bx-search fs-6"></i>
                                 </span>
 
-                                <div id="selectedJobsContainer" class="d-flex flex-wrap gap-1 flex-grow-1">
-                                    <span id="selectedJobsPlaceholder" class="small text-muted">Pilih Job...</span>
+                                <div id="selectedJobsContainer" class="d-flex align-items-center gap-1" style="flex-wrap: nowrap;">
+                                    {{-- Badges will be rendered here --}}
                                 </div>
 
                                 <input type="text" id="searchJob" name="search_jobs"
-                                    class="form-control form-control-sm border-0 shadow-none" placeholder=""
-                                    autocomplete="off" value="" style="min-width: 90px; flex: 1 1 120px;">
+                                    class="form-control form-control-sm border-0 shadow-none ms-1" placeholder="Cari & Pilih Job..."
+                                    autocomplete="off" value="" style="flex: 1; min-width: 100px;">
                             </div>
 
                             <input type="hidden" id="searchJobsHidden" name="search_jobs"
@@ -285,7 +286,8 @@
                             <i class="bx bx-chevron-right"></i>
                         </button>
                         <div class="table-responsive table-scroll-show">
-                            <table class="table table-sm table-hover mb-0 align-middle">
+                            <table id="tbl-job-{{ $clean_job_key }}"
+                                class="table table-sm table-hover mb-0 align-middle">
                                 <thead class="table-light text-uppercase small">
                                     <tr>
                                         <th>Job</th>
@@ -337,8 +339,31 @@
                                                     {{ $data->proses ?? '-' }}
                                                 </span>
                                             </td>
-                                            <td class="small text-nowrap">{{ $data->product ?? '-' }}</td>
-                                            <td class="small text-nowrap">{{ $data->operator ?? '-' }}</td>
+                                            <td class="small text-nowrap">
+                                                @if (strlen($data->product ?? '') > 20)
+                                                    <span class="product-toggle cursor-pointer"
+                                                        style="cursor: pointer;" data-full="{{ $data->product }}"
+                                                        data-short="{{ \Illuminate\Support\Str::limit($data->product, 20) }}">
+                                                        {{ \Illuminate\Support\Str::limit($data->product, 20) }}
+                                                    </span>
+                                                @else
+                                                    {{ $data->product ?? '-' }}
+                                                @endif
+                                            </td>
+                                            <td class="small text-nowrap">
+                                                <span class="inline-edit-cell" data-id="{{ $data->id }}"
+                                                    data-field="operator" data-value="{{ $data->operator ?? '' }}">
+                                                    @if (strlen($data->operator ?? '') > 20)
+                                                        <span class="operator-toggle cursor-pointer"
+                                                            style="cursor: pointer;" data-full="{{ $data->operator }}"
+                                                            data-short="{{ \Illuminate\Support\Str::limit($data->operator, 20) }}">
+                                                            {{ \Illuminate\Support\Str::limit($data->operator, 20) }}
+                                                        </span>
+                                                    @else
+                                                        {{ $data->operator ?? '-' }}
+                                                    @endif
+                                                </span>
+                                            </td>
                                             <td class="small text-nowrap">
                                                 @if ($data->tanggal)
                                                     {{ strtoupper(substr(\Carbon\Carbon::parse($data->tanggal)->format('l'), 0, 4)) }}
@@ -348,7 +373,10 @@
                                                 @endif
                                             </td>
                                             <td class="text-center fw-semibold">
-                                                {{ $data->upspk ?? '0' }}
+                                                <span class="inline-edit-cell" data-id="{{ $data->id }}"
+                                                    data-field="upspk" data-value="{{ $data->upspk ?? 0 }}">
+                                                    {{ $data->upspk ? number_format($data->upspk, 0, ',', '.') : '0' }}
+                                                </span>
                                             </td>
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
@@ -370,10 +398,12 @@
                                                     {{ $data->jtpcs ? number_format($data->jtpcs, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
-                                            <td class="text-center fw-semibold">
+                                            <td class="text-center fw-semibold" data-derived-field="outputpcs"
+                                                data-id="{{ $data->id }}">
                                                 {{ $data->outputpcs ? number_format($data->outputpcs, 0, ',', '.') : '0' }}
                                             </td>
-                                            <td class="text-center fw-semibold">
+                                            <td class="text-center fw-semibold" data-derived-field="outputdrik"
+                                                data-id="{{ $data->id }}">
                                                 {{ $data->outputdrik ? number_format($data->outputdrik, 0, ',', '.') : '0' }}
                                             </td>
                                             {{-- Toggle button — opens offcanvas --}}
@@ -389,6 +419,9 @@
                                                         'product' => $data->product ?? '-',
                                                         'designno' => $data->designno ?? '-',
                                                         'operator' => $data->operator ?? '-',
+                                                        'set' => $data->set ?? '-',
+                                                        'run' => $data->run ?? '-',
+                                                        'finish' => $data->finish ?? '-',
                                                         'totaljam' => $data->totaljam ?? '0',
                                                         'shift' => $data->shift ?? '0',
                                                         'po' => $data->po ?? '0',
@@ -412,19 +445,19 @@
                                         <td colspan="7" class="text-center">
                                             GRAND TOTAL
                                         </td>
-                                        <td>
+                                        <td class="text-center">
                                             {{ number_format($items->sum('input'), 0, ',', '.') }}
                                         </td>
-                                        <td class="text-start">
+                                        <td class="text-center">
                                             {{ number_format($items->sum('jtdrik'), 0, ',', '.') }}
                                         </td>
-                                        <td class="text-start">
+                                        <td class="text-center">
                                             {{ number_format($items->sum('jtpcs'), 0, ',', '.') }}
                                         </td>
-                                        <td>
+                                        <td class="text-center">
                                             {{ number_format($items->sum('outputpcs'), 0, ',', '.') }}
                                         </td>
-                                        <td>
+                                        <td class="text-center">
                                             {{ number_format($items->sum('outputdrik'), 0, ',', '.') }}
                                         </td>
                                         <td></td>
@@ -442,21 +475,44 @@
                     </div>
         @endforelse
 
+        {{-- Pagination --}}
+        @if ($detailProses->hasPages())
+            <div class="card-footer bg-transparent border-top py-3 px-4 mt-3">
+                {{ $detailProses->links('pagination::bootstrap-5') }}
+            </div>
+        @endif
 
     </div>
 
 
-    {{-- ── Offcanvas Detail ──────────────────────────────────── --}}
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasDetail" style="width:420px"
-        aria-labelledby="offcanvasDetailLabel">
-        <div class="offcanvas-header border-bottom">
-            <h5 class="offcanvas-title d-flex align-items-center gap-2" id="offcanvasDetailLabel">
-                <i class="bx bx-layer text-primary fs-4"></i>
-                Detail Proses Produksi
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    <!-- Toast container for notifications -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 99999 !important; margin-top: 60px;">
+        <div id="liveToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive"
+            aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastMessage"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
         </div>
-        <div class="offcanvas-body" id="offcanvasBody"></div>
+    </div>
+
+    {{-- Modal Detail --}}
+    <div class="modal fade" id="modalDetail" tabindex="-1" aria-labelledby="modalDetailLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title d-flex align-items-center gap-4" id="modalDetailLabel">
+                        <i class="bx bx-layer text-primary fs-4"></i>
+                        Detail Proses Produksi
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    {{-- Filled dynamically by JS --}}
+                </div>
+            </div>
+        </div>
     </div>
 
     <style>
@@ -478,7 +534,8 @@
             scrollbar-width: none;
         }
 
-        .table-scroll-show::-webkit-scrollbar {
+        .table-scroll-show::-webkit-scrollbar,
+        #jobSearchWrapper::-webkit-scrollbar {
             display: none;
         }
 
@@ -549,20 +606,20 @@
         }
 
         /* #tblProduksi thead th {
-                                                        position: sticky;
-                                                        top: 70px;
-                                                        z-index: 1020;
-                                                        background: #fff;
-                                                    }
+                                                                                                                position: sticky;
+                                                                                                                top: 70px;
+                                                                                                                z-index: 1020;
+                                                                                                                background: #fff;
+                                                                                                            }
 
-                                                    .table-light th{
-                                                        background: #f8f9fa !important;
-                                                    } */
+                                                                                                            .table-light th{
+                                                                                                                background: #f8f9fa !important;
+                                                                                                            } */
     </style>
 
     <script>
-        let offcanvasBs;
-        const offcanvasBody = document.getElementById('offcanvasBody');
+        let modalBs;
+        const modalBody = document.getElementById('modalBody');
 
         function showToast(message, type = 'success') {
             const toastEl = document.getElementById('liveToast');
@@ -571,7 +628,7 @@
                 'danger' ? 'danger' : (type === 'warning' ? 'warning' : 'success'));
             toastBody.textContent = message;
             const toast = new bootstrap.Toast(toastEl, {
-                delay: 4000
+                delay: 2000
             });
             toast.show();
         }
@@ -629,7 +686,10 @@
             const value = $input.val();
             const cell = $input.closest('.inline-edit-cell');
 
-            if (value === '' || isNaN(value)) {
+            // Validasi input: pastikan nilai adalah angka jika field numerik
+            const numericFields = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift'];
+            const isNumericField = numericFields.includes(field);
+            if (isNumericField && (value === '' || isNaN(value))) {
                 showToast('Nilai harus berupa angka.', 'danger');
                 cancelInlineEdit(cell, cell.data('value'));
                 return;
@@ -646,27 +706,88 @@
                 },
                 success: function(response) {
                     const values = response.values || {};
-                    const row = cell.closest('tr');
+                    const isTimeField = ['set', 'run', 'finish'].includes(field);
 
-                    cell.data('value', value);
-                    cell.text(parseFloat(value).toLocaleString('id-ID', {
-                        maximumFractionDigits: 0
-                    }));
-
-                    row.find('.inline-edit-cell').each(function() {
+                    // 1. Update all matching inline-edit cells in the entire document (both tables and modal)
+                    $(`.inline-edit-cell[data-id="${id}"]`).each(function() {
                         const $span = $(this);
                         const fieldName = $span.data('field');
                         if (fieldName && values[fieldName] !== undefined) {
                             $span.data('value', values[fieldName]);
-                            $span.text(parseFloat(values[fieldName]).toLocaleString('id-ID', {
+                            const isSpanNumeric = numericFields.includes(fieldName);
+                            const isSpanTime = ['set', 'run', 'finish'].includes(fieldName);
+                            $span.text(isSpanNumeric ? parseFloat(values[fieldName]).toLocaleString(
+                                'id-ID', {
+                                    maximumFractionDigits: 0
+                                }) : (isSpanTime ? formatDateTime(values[fieldName]) : values[
+                                fieldName]));
+                        }
+                    });
+
+                    // 2. Update all matching derived cells in the entire document (main tables)
+                    $(`[data-derived-field][data-id="${id}"]`).each(function() {
+                        const $td = $(this);
+                        const derivedField = $td.data('derived-field');
+                        if (derivedField && values[derivedField] !== undefined) {
+                            $td.text(parseFloat(values[derivedField]).toLocaleString('id-ID', {
                                 maximumFractionDigits: 0
                             }));
                         }
                     });
 
+                    // 3. Update modal derived values if modal is open for the same ID
+                    const $modalDetail = $('#modalDetail');
+                    const modalId = $modalDetail.find('.inline-edit-cell').first().data('id');
+                    if (modalId === id) {
+                        $modalDetail.find('.modal-derived-val').each(function() {
+                            const $span = $(this);
+                            const fieldName = $span.data('field');
+                            if (fieldName && values[fieldName] !== undefined) {
+                                const isSpanNumeric = numericFields.includes(fieldName);
+                                const isSpanTime = ['set', 'run', 'finish'].includes(fieldName);
+                                $span.text(isSpanNumeric ? parseFloat(values[fieldName]).toLocaleString(
+                                    'id-ID', {
+                                        maximumFractionDigits: 0
+                                    }) : (isSpanTime ? formatDateTime(values[fieldName]) :
+                                    values[fieldName]));
+                            }
+                        });
+                    }
+
                     if (response.message) {
                         showToast(response.message, 'success');
                     }
+
+                    // 5. Refresh only tfoot (Grand Total) and Rangkuman table via $.get
+                    $.get(window.location.href, function(html) {
+                        const newDoc = new DOMParser().parseFromString(html, 'text/html');
+
+                        // Update Rangkuman Table
+                        const newRangkumanTbody = newDoc.querySelector('#tblRangkuman tbody');
+                        const newRangkumanTfoot = newDoc.querySelector('#tblRangkuman tfoot');
+                        if (newRangkumanTbody) {
+                            $('#tblRangkuman tbody').replaceWith($(newRangkumanTbody));
+                        }
+                        if (newRangkumanTfoot) {
+                            $('#tblRangkuman tfoot').replaceWith($(newRangkumanTfoot));
+                        }
+
+                        // Update tbody and tfoot of each Detail Job Table
+                        newDoc.querySelectorAll('[id^="tbl-job-"]').forEach(function(newTable) {
+                            const tableId = newTable.id;
+                            const oldTable = document.getElementById(tableId);
+                            if (oldTable) {
+                                const newTbody = newTable.querySelector('tbody');
+                                const newTfoot = newTable.querySelector('tfoot');
+                                if (newTbody) {
+                                    $(oldTable).find('tbody').replaceWith($(newTbody));
+                                }
+                                if (newTfoot) {
+                                    $(oldTable).find('tfoot').replaceWith($(newTfoot));
+                                }
+                            }
+                        });
+                    });
                 },
                 error: function(xhr) {
                     cancelInlineEdit(cell, cell.data('value'));
@@ -676,8 +797,41 @@
             });
         }
 
+        // Format datetime as DD-MM-YY HH:MM for display
+        function formatDateTime(val) {
+            if (!val || val === '-') return '-';
+            const s = String(val).trim().replace('T', ' ');
+            const d = new Date(s.includes(' ') ? s : '1970-01-01 ' + s);
+            if (isNaN(d.getTime())) return val;
+            if (!s.includes('-') && !s.includes('/')) {
+                // Only time stored — show just HH:MM
+                return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+            }
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yy = String(d.getFullYear()).slice(-2);
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mi = String(d.getMinutes()).padStart(2, '0');
+            return `${dd}-${mm}-${yy} ${hh}:${mi}`;
+        }
+
+        // Normalize a stored value to YYYY-MM-DDTHH:MM for datetime-local input
+        function toDatetimeLocalVal(val) {
+            if (!val || val === '-') return '';
+            const s = String(val).trim();
+            if (s.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)) return s.substring(0, 16);
+            if (s.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/)) return s.replace(' ', 'T').substring(0, 16);
+            const today = new Date().toISOString().substring(0, 10);
+            const parts = s.split(':');
+            const timeStr = parts.length >= 2 ?
+                parts[0].padStart(2, '0') + ':' + parts[1].padStart(2, '0') :
+                '00:00';
+            return today + 'T' + timeStr;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            offcanvasBs = new bootstrap.Offcanvas(document.getElementById('offcanvasDetail'));
+            const modalEl = document.getElementById('modalDetail');
+            modalBs = new bootstrap.Modal(modalEl);
             initShowScrolls();
 
             $(document).on('dblclick', '.inline-edit-cell', function(e) {
@@ -702,11 +856,18 @@
                 const activeValue = cell.html();
                 const id = cell.data('id');
                 const value = cell.data('value') ?? '';
+                const isTimeField = ['set', 'run', 'finish'].includes(field);
 
-                cell.html(
-                    `<input type="text" class="form-control form-control-sm inline-edit-input" data-id="${id}" data-field="${field}" value="${value}" />`
-                );
-                cell.find('input').focus().select();
+                if (isTimeField) {
+                    cell.html(
+                        `<input type="datetime-local" class="form-control form-control-sm inline-edit-input" data-id="${id}" data-field="${field}" value="${toDatetimeLocalVal(value)}" style="min-width:180px" />`
+                    );
+                } else {
+                    cell.html(
+                        `<input type="text" class="form-control form-control-sm inline-edit-input" data-id="${id}" data-field="${field}" value="${value}" />`
+                    );
+                }
+                cell.find('input').focus();
             });
 
             $(document).on('keydown', '.inline-edit-input', function(e) {
@@ -721,12 +882,27 @@
                 }
             });
 
+            // toggle product text
+            $(document).on('click', '.product-toggle', function() {
+                const $span = $(this);
+                const isShort = $span.text().trim() === $span.data('short').trim();
+                $span.text(isShort ? $span.data('full') : $span.data('short'));
+            });
+
+            // toggle operator text
+            $(document).on('click', '.operator-toggle', function() {
+                const $span = $(this);
+                const isShort = $span.text().trim() === $span.data('short').trim();
+                $span.text(isShort ? $span.data('full') : $span.data('short'));
+            });
+
             $(document).on('focusout', '.inline-edit-input', function() {
                 saveInlineEdit($(this));
             });
         });
 
         function showDetail(d) {
+            // ── Label map : [label, value, icon, highlight] ──────────────
             const sections = [{
                     heading: 'Informasi Umum',
                     rows: [{
@@ -737,7 +913,7 @@
                         {
                             icon: 'bx-calendar',
                             label: 'Tanggal',
-                            val: d.tanggal
+                            val: d.tanggal ? d.tanggal.toUpperCase() : '-'
                         },
                         {
                             icon: 'bx-briefcase',
@@ -763,21 +939,47 @@
                         {
                             icon: 'bx-user',
                             label: 'Operator',
-                            val: d.operator
+                            val: d.operator,
+                            field: 'operator',
+                            editable: true
                         },
                     ]
                 },
                 {
                     heading: 'Jadwal & Plan',
                     rows: [{
+                            icon: 'bx-cog',
+                            label: 'Set',
+                            val: d.set ?? '-',
+                            field: 'set',
+                            editable: true
+                        },
+                        {
+                            icon: 'bx-play',
+                            label: 'Run',
+                            val: d.run ?? '-',
+                            field: 'run',
+                            editable: true
+                        },
+                        {
+                            icon: 'bx-check-double',
+                            label: 'Finish',
+                            val: d.finish ?? '-',
+                            field: 'finish',
+                            editable: true
+                        },
+                        {
                             icon: 'bx-time',
                             label: 'Total Jam',
-                            val: d.totaljam
+                            val: d.totaljam,
+                            field: 'totaljam'
                         },
                         {
                             icon: 'bx-transfer-alt',
                             label: 'Shift',
-                            val: d.shift
+                            val: d.shift,
+                            field: 'shift',
+                            editable: true
                         },
                         {
                             icon: 'bx-list-ol',
@@ -787,7 +989,9 @@
                         {
                             icon: 'bx-arrow-to-bottom',
                             label: 'Input',
-                            val: d.input
+                            val: d.input,
+                            field: 'input',
+                            editable: true
                         },
                     ]
                 },
@@ -796,66 +1000,142 @@
                     rows: [{
                             icon: 'bx-package',
                             label: 'JT PCS',
-                            val: d.jtpcs
+                            val: d.jtpcs,
+                            field: 'jtpcs',
+                            editable: true
                         },
                         {
                             icon: 'bx-package',
                             label: 'JT Drik',
-                            val: d.jtdrik
+                            val: d.jtdrik,
+                            field: 'jtdrik',
+                            editable: true
                         },
                         {
                             icon: 'bx-stats',
                             label: 'UPS PK',
-                            val: d.upspk
+                            val: d.upspk,
+                            field: 'upspk',
+                            editable: true
                         },
                         {
                             icon: 'bx-check-square',
                             label: 'Output PCS',
                             val: d.outputpcs,
+                            field: 'outputpcs',
                             highlight: true
                         },
                         {
                             icon: 'bx-check-square',
                             label: 'Output Drik',
                             val: d.outputdrik,
+                            field: 'outputdrik',
                             highlight: true
                         },
                         {
                             icon: 'bx-calculator',
                             label: 'Total Pengerjaan Drik',
-                            val: d.total_pengerjaan_drik
+                            val: d.total_pengerjaan_drik,
+                            field: 'total_pengerjaan_drik'
                         },
                         {
                             icon: 'bx-calculator',
                             label: 'Total Pengerjaan PCS',
-                            val: d.total_pengerjaan_pcs
+                            val: d.total_pengerjaan_pcs,
+                            field: 'total_pengerjaan_pcs'
                         },
                     ]
                 }
             ];
 
-            let html = '';
-            sections.forEach(sec => {
-                html += `<p class="text-uppercase fw-bold small text-muted mb-2 mt-4">${sec.heading}</p>
-             <div class="list-group list-group-flush mb-1">`;
+            // Render the sections into HTML
+            let html = '<div class="row justify-content-center g-4 p-2">';
+
+            sections.forEach((sec, idx) => {
+                let colClass = 'col-lg-4 col-md-6';
+                let labelWidth = '140px';
+                if (idx === 0) {
+                    colClass = 'col-lg-4 col-md-6';
+                    labelWidth = '100px';
+                } else if (idx === 1) {
+                    colClass = 'col-lg-4 col-md-6';
+                    labelWidth = '100px';
+                } else if (idx === 2) {
+                    colClass = 'col-lg-4 col-md-6';
+                    labelWidth = '175px';
+                }
+
+                html += `
+  <div class="${colClass}">
+    <div class="card h-100 border shadow-none">
+      <div class="card-body p-4">
+        <h6 class="text-uppercase fw-bold text-primary mb-3" style="font-size: 0.8rem; letter-spacing: 0.05em;">
+          ${sec.heading}
+        </h6>
+        <div class="list-group list-group-flush">`;
+
                 sec.rows.forEach(r => {
-                    const val = r.badge ?
-                        `<span class="badge bg-label-primary fw-normal">${r.val}</span>` :
-                        r.highlight ?
-                        `<span class="fw-bold text-primary">${r.val}</span>` :
-                        `<span class="text-body-emphasis">${r.val}</span>`;
+                    let valHtml = '';
+                    if (r.editable) {
+                        let isEditableVal = '1';
+                        if (r.field === 'jtdrik') {
+                            isEditableVal = d.proses.toLowerCase() === 'lem' ? '0' : '1';
+                        } else if (r.field === 'jtpcs') {
+                            isEditableVal = ['lem', 'sortpacking'].includes(d.proses.toLowerCase()) ? '1' :
+                                '0';
+                        }
+
+                        const isNumeric = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift'].includes(r.field);
+                        const isTime = ['set', 'run', 'finish'].includes(r.field);
+                        const formattedVal = isNumeric ?
+                            parseFloat(r.val || 0).toLocaleString('id-ID', {
+                                maximumFractionDigits: 0
+                            }) :
+                            (isTime ? formatDateTime(r.val) : r.val);
+
+                        valHtml =
+                            `<span class="inline-edit-cell" data-id="${d.id}" data-field="${r.field}" data-value="${r.val}" data-editable="${isEditableVal}">${formattedVal}</span>`;
+                    } else {
+                        const formattedVal = (r.field && ['outputpcs', 'outputdrik',
+                                'total_pengerjaan_drik', 'total_pengerjaan_pcs'
+                            ].includes(r.field)) ?
+                            parseFloat(r.val || 0).toLocaleString('id-ID', {
+                                maximumFractionDigits: 0
+                            }) :
+                            r.val;
+
+                        const dataFieldAttr = r.field ? `data-field="${r.field}"` : '';
+                        const classAttr = r.field ? 'class="modal-derived-val' + (r.highlight ?
+                            ' fw-bold text-primary' : ' text-body-emphasis') + '"' : (r.highlight ?
+                            'class="fw-bold text-primary"' : 'class="text-body-emphasis"');
+
+                        valHtml = r.badge ?
+                            `<span class="badge bg-label-primary fw-normal">${formattedVal}</span>` :
+                            `<span ${classAttr} ${dataFieldAttr}>${formattedVal}</span>`;
+                    }
+
                     html += `
-        <div class="list-group-item px-0 py-2 d-flex align-items-center gap-3 border-0 border-bottom">
-          <span class="text-muted" style="width:20px"><i class="bx ${r.icon}"></i></span>
-          <span class="text-muted small" style="width:160px">${r.label}</span>
-          ${val}
-        </div>`;
+          <div class="list-group-item px-0 py-2 d-flex align-items-start gap-3 border-0 border-bottom">
+            <div class="d-flex align-items-center gap-2 text-muted" style="width: ${labelWidth}; flex-shrink: 0;">
+              <span style="width:20px; display:inline-block;"><i class="bx ${r.icon}"></i></span>
+              <span class="small fw-semibold">${r.label}</span>
+            </div>
+            <div class="flex-grow-1 text-wrap text-break">
+              ${valHtml}
+            </div>
+          </div>`;
                 });
-                html += `</div>`;
+                html += `
+        </div>
+      </div>
+    </div>
+  </div>`;
             });
 
-            offcanvasBody.innerHTML = html;
-            offcanvasBs.show();
+            html += '</div>';
+
+            modalBody.innerHTML = html;
+            modalBs.show();
         }
 
         // Toggle job row collapse
