@@ -12,10 +12,10 @@
                 <h4 class="fw-bold mb-0">Proses Produksi</h4>
                 <p class="text-muted mb-0 small">Kelola dan pantau seluruh data proses produksi</p>
             </div>
-            <a href="{{ route('proses-produksi.rangkuman') }}" class="btn btn-primary d-flex align-items-center gap-1">
+            {{-- <a href="{{ route('proses-produksi.rangkuman') }}" class="btn btn-primary d-flex align-items-center gap-1">
                 <i class="bx bx-plus fs-5"></i>
                 Rangkuman
-            </a>
+            </a> --}}
             <a href="{{ route('proses-produksi.create') }}" class="btn btn-primary d-flex align-items-center gap-1">
                 <i class="bx bx-plus fs-5"></i>
                 Tambah Data
@@ -383,8 +383,15 @@
                                             {{-- Compact row --}}
                                             <tr>
                                                 {{-- job --}}
-                                                <td class="small text-nowrap">
-                                                    {{ $data->job ?? '-' }}
+                                                <td>
+                                                    @if ($data->job)
+                                                        <a href="{{ route('proses-produksi.show', $data->job) }}"
+                                                            class="fw-semibold text-primary text-decoration-none">
+                                                            {{ $data->job }}
+                                                        </a>
+                                                    @else
+                                                        <span class="text-muted">-</span>
+                                                    @endif
                                                 </td>
                                                 <td class="small text-nowrap">
                                                     {{ $data->designno ?? '-' }}

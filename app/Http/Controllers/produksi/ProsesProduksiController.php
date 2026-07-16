@@ -214,10 +214,10 @@ class ProsesProduksiController extends Controller
         return view('role.produksi.proses_produksi.create', compact('jobs'));
     }
 
-    public function show(Request $request)
+    public function show(Request $request, $job_id)
     {
         // 1. CARI NOMOR DOCKET DARI JOB INI
-        $firstRecord = ProsesProduksi::where('job')->first();
+        $firstRecord = ProsesProduksi::where('job', $job_id)->first();
         if (! $firstRecord) {
             abort(404, 'Job tidak ditemukan.');
         }
@@ -240,6 +240,7 @@ class ProsesProduksiController extends Controller
                         ->distinct()
                         ->pluck('job')
                         ->toArray();
+
                     if (empty($jobsFound)) {
                         return redirect()->route('proses-produksi.show', $job_id)
                             ->with('error', "Tidak ada Job ID yang cocok dengan pencarian '{$sJob}'.");

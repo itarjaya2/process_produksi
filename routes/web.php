@@ -16,8 +16,10 @@ Route::get('/proses-produksi/create', [ProsesProduksiController::class, 'create'
 Route::get('/proses-produksi/search-suggestions', [ProsesProduksiController::class, 'searchSuggestions'])->name('proses-produksi.search-suggestions');
 // Route untuk melihat detail berdasarkan nomor job
 // Route::get('/proses-produksi/rangkuman', [ProsesProduksiController::class, 'show'])->name('proses-produksi.show');
-Route::get('/proses-produksi/rangkuman', [ProsesProduksiController::class, 'show'])
-    ->name('proses-produksi.rangkuman');
+// Route::get('/proses-produksi/job/{job_id}', [ProsesProduksiController::class, 'show'])
+//     ->name('proses-produksi.rangkuman');
+Route::get('/proses-produksi/job/{job_id}', [ProsesProduksiController::class, 'show'])->name('proses-produksi.show');
+// Route::get('/proses-produksi/job/{job_id}', [ProsesProduksiController::class, 'show'])->name('proses-produksi.show');
 Route::match(['post', 'patch'], '/proses-produksi/inline-update', [ProsesProduksiController::class, 'inlineUpdate'])->name('proses-produksi.inline-update');
 Route::get('/get-job-data/{job_id}', [ProsesProduksiController::class, 'getJobData']);
 Route::get('/proses-produksi/{id}/edit', [ProsesProduksiController::class, 'edit'])
