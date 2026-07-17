@@ -1322,21 +1322,17 @@
                 const sections = [{
                         heading: 'Informasi Umum',
                         rows: [{
-                                icon: 'bx-calendar',
-                                label: 'Tanggal',
-                                val: d.tanggal ? d.tanggal.toUpperCase() : '-'
+                                icon: 'bx-cog',
+                                label: 'Proses',
+                                val: d.proses,
+                                badge: true
                             },
                             {
                                 icon: 'bx-briefcase',
                                 label: 'Job',
                                 val: d.job
                             },
-                            {
-                                icon: 'bx-cog',
-                                label: 'Proses',
-                                val: d.proses,
-                                badge: true
-                            },
+
                             {
                                 icon: 'bx-box',
                                 label: 'Produk',
@@ -1358,6 +1354,25 @@
                     {
                         heading: 'Jadwal & Plan',
                         rows: [{
+                                icon: 'bx-calendar',
+                                label: 'Tanggal',
+                                val: d.tanggal ? d.tanggal.toUpperCase() : '-'
+                            },
+                            {
+                                icon: 'bx-user',
+                                label: 'Operator',
+                                val: d.operator,
+                                field: 'operator',
+                                editable: true
+                            },
+                            {
+                                icon: 'bx-transfer-alt',
+                                label: 'Shift',
+                                val: d.shift,
+                                field: 'shift',
+                                editable: true
+                            },
+                            {
                                 icon: 'bx-cog',
                                 label: 'Set',
                                 val: d.set ?? '-',
@@ -1384,20 +1399,7 @@
                                 val: d.totaljam,
                                 field: 'totaljam'
                             },
-                            {
-                                icon: 'bx-user',
-                                label: 'Operator',
-                                val: d.operator,
-                                field: 'operator',
-                                editable: true
-                            },
-                            {
-                                icon: 'bx-transfer-alt',
-                                label: 'Shift',
-                                val: d.shift,
-                                field: 'shift',
-                                editable: true
-                            },
+
 
 
                         ]
