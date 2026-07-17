@@ -60,15 +60,6 @@
                         </p>
                         {{-- id --}}
                         <div class="row g-2">
-                            <div class="col-12 col-sm-4 col-lg-1">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-transparent border-end-0 text-muted">
-                                        <i class="bx bx-hash"></i>
-                                    </span>
-                                    <input type="number" name="id" value="{{ request('id') }}" placeholder="ID"
-                                        class="form-control form-control-sm border-start-0 ps-0" style="min-width:0">
-                                </div>
-                            </div>
                             {{-- no job --}}
                             <div class="col-12 col-sm-4 col-lg-2">
                                 <div class="position-relative">
@@ -208,7 +199,7 @@
                                 </div>
                             </div>
                             {{-- tanggal --}}
-                            <div class="col-12 col-sm-6 col-lg-2">
+                            <div class="col-12 col-sm-6 col-lg-3">
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-transparent border-end-0 text-muted">
                                         <i class="bx bx-calendar"></i>
@@ -1331,11 +1322,6 @@
                 const sections = [{
                         heading: 'Informasi Umum',
                         rows: [{
-                                icon: 'bx-hash',
-                                label: 'ID',
-                                val: d.id
-                            },
-                            {
                                 icon: 'bx-calendar',
                                 label: 'Tanggal',
                                 val: d.tanggal ? d.tanggal.toUpperCase() : '-'
