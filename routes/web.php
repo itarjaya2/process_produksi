@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\produksi\ActivityLogController;
 use App\Http\Controllers\produksi\ProsesProduksiController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,3 +27,10 @@ Route::get('/proses-produksi/{id}/edit', [ProsesProduksiController::class, 'edit
 
 Route::put('/proses-produksi/{id}', [ProsesProduksiController::class, 'update'])
     ->name('proses-produksi.update');
+
+// Route::middleware(['auth'])->group(function () {
+// Route utama untuk menampilkan halaman daftar Activity Log
+Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+// (Opsional) Route API/AJAX jika Anda ingin menampilkan modal histori khusus untuk 1 baris Job tertentu
+// Route::get('/activity-logs/proses/{proses_produksi_id}', [ActivityLogController::class, 'showByProses'])->name('activity-logs.show-by-proses');
+// });

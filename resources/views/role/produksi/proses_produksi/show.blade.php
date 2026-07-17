@@ -47,17 +47,20 @@
                             <div id="jobSearchWrapper"
                                 class="input-group input-group-merge align-items-center border rounded-3 px-2 py-1 bg-white"
                                 style="height: 38px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -ms-overflow-style: none;">
-                                <span class="input-group-text border-0 bg-transparent px-1" style="position: sticky; left: 0; background: #fff; z-index: 2;">
+                                <span class="input-group-text border-0 bg-transparent px-1"
+                                    style="position: sticky; left: 0; background: #fff; z-index: 2;">
                                     <i class="bx bx-search fs-6"></i>
                                 </span>
 
-                                <div id="selectedJobsContainer" class="d-flex align-items-center gap-1" style="flex-wrap: nowrap;">
+                                <div id="selectedJobsContainer" class="d-flex align-items-center gap-1"
+                                    style="flex-wrap: nowrap;">
                                     {{-- Badges will be rendered here --}}
                                 </div>
 
                                 <input type="text" id="searchJob" name="search_jobs"
-                                    class="form-control form-control-sm border-0 shadow-none ms-1" placeholder="Cari & Pilih Job..."
-                                    autocomplete="off" value="" style="flex: 1; min-width: 100px;">
+                                    class="form-control form-control-sm border-0 shadow-none ms-1"
+                                    placeholder="Cari & Pilih Job..." autocomplete="off" value=""
+                                    style="flex: 1; min-width: 100px;">
                             </div>
 
                             <input type="hidden" id="searchJobsHidden" name="search_jobs"
@@ -341,8 +344,8 @@
                                             </td>
                                             <td class="small text-nowrap">
                                                 @if (strlen($data->product ?? '') > 20)
-                                                    <span class="product-toggle cursor-pointer"
-                                                        style="cursor: pointer;" data-full="{{ $data->product }}"
+                                                    <span class="product-toggle cursor-pointer" style="cursor: pointer;"
+                                                        data-full="{{ $data->product }}"
                                                         data-short="{{ \Illuminate\Support\Str::limit($data->product, 20) }}">
                                                         {{ \Illuminate\Support\Str::limit($data->product, 20) }}
                                                     </span>
@@ -606,15 +609,15 @@
         }
 
         /* #tblProduksi thead th {
-                                                                                                                position: sticky;
-                                                                                                                top: 70px;
-                                                                                                                z-index: 1020;
-                                                                                                                background: #fff;
-                                                                                                            }
+                                                                                                                                                position: sticky;
+                                                                                                                                                top: 70px;
+                                                                                                                                                z-index: 1020;
+                                                                                                                                                background: #fff;
+                                                                                                                                            }
 
-                                                                                                            .table-light th{
-                                                                                                                background: #f8f9fa !important;
-                                                                                                            } */
+                                                                                                                                            .table-light th{
+                                                                                                                                                background: #f8f9fa !important;
+                                                                                                                                            } */
     </style>
 
     <script>
@@ -906,26 +909,17 @@
             const sections = [{
                     heading: 'Informasi Umum',
                     rows: [{
-                            icon: 'bx-hash',
-                            label: 'ID',
-                            val: d.id
-                        },
-                        {
-                            icon: 'bx-calendar',
-                            label: 'Tanggal',
-                            val: d.tanggal ? d.tanggal.toUpperCase() : '-'
+                            icon: 'bx-cog',
+                            label: 'Proses',
+                            val: d.proses,
+                            badge: true
                         },
                         {
                             icon: 'bx-briefcase',
                             label: 'Job',
                             val: d.job
                         },
-                        {
-                            icon: 'bx-cog',
-                            label: 'Proses',
-                            val: d.proses,
-                            badge: true
-                        },
+
                         {
                             icon: 'bx-box',
                             label: 'Produk',
@@ -937,17 +931,36 @@
                             val: d.designno
                         },
                         {
+                            icon: 'bx-list-ol',
+                            label: 'PO',
+                            val: d.po
+                        },
+
+                    ]
+                },
+                {
+                    heading: 'Jadwal & Plan',
+                    rows: [{
+                            icon: 'bx-calendar',
+                            label: 'Tanggal',
+                            val: d.tanggal ? d.tanggal.toUpperCase() : '-'
+                        },
+
+                        {
                             icon: 'bx-user',
                             label: 'Operator',
                             val: d.operator,
                             field: 'operator',
                             editable: true
                         },
-                    ]
-                },
-                {
-                    heading: 'Jadwal & Plan',
-                    rows: [{
+                        {
+                            icon: 'bx-transfer-alt',
+                            label: 'Shift',
+                            val: d.shift,
+                            field: 'shift',
+                            editable: true
+                        },
+                        {
                             icon: 'bx-cog',
                             label: 'Set',
                             val: d.set ?? '-',
@@ -974,30 +987,20 @@
                             val: d.totaljam,
                             field: 'totaljam'
                         },
-                        {
-                            icon: 'bx-transfer-alt',
-                            label: 'Shift',
-                            val: d.shift,
-                            field: 'shift',
-                            editable: true
-                        },
-                        {
-                            icon: 'bx-list-ol',
-                            label: 'PO',
-                            val: d.po
-                        },
-                        {
+
+                    ]
+                },
+                {
+                    heading: 'Output & Hasil',
+                    rows: [{
                             icon: 'bx-arrow-to-bottom',
                             label: 'Input',
                             val: d.input,
                             field: 'input',
                             editable: true
                         },
-                    ]
-                },
-                {
-                    heading: 'Output & Hasil',
-                    rows: [{
+                        {
+
                             icon: 'bx-package',
                             label: 'JT PCS',
                             val: d.jtpcs,
@@ -1013,7 +1016,7 @@
                         },
                         {
                             icon: 'bx-stats',
-                            label: 'UPS PK',
+                            label: 'UPSPK',
                             val: d.upspk,
                             field: 'upspk',
                             editable: true
