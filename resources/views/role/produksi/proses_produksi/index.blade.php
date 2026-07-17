@@ -1215,7 +1215,7 @@
                                 });
                             }
 
-                            // Refresh Grand Total in tfoot
+
                             $.get(window.location.href, function(html) {
                                 const newDoc = new DOMParser().parseFromString(html, 'text/html');
 
@@ -1362,12 +1362,11 @@
                                 val: d.designno
                             },
                             {
-                                icon: 'bx-user',
-                                label: 'Operator',
-                                val: d.operator,
-                                field: 'operator',
-                                editable: true
+                                icon: 'bx-list-ol',
+                                label: 'PO',
+                                val: d.po
                             },
+
                         ]
                     },
                     {
@@ -1400,29 +1399,32 @@
                                 field: 'totaljam'
                             },
                             {
+                                icon: 'bx-user',
+                                label: 'Operator',
+                                val: d.operator,
+                                field: 'operator',
+                                editable: true
+                            },
+                            {
                                 icon: 'bx-transfer-alt',
                                 label: 'Shift',
                                 val: d.shift,
                                 field: 'shift',
                                 editable: true
                             },
-                            {
-                                icon: 'bx-list-ol',
-                                label: 'PO',
-                                val: d.po
-                            },
-                            {
-                                icon: 'bx-arrow-to-bottom',
-                                label: 'Input',
-                                val: d.input,
-                                field: 'input',
-                                editable: true
-                            },
+
+
                         ]
                     },
                     {
                         heading: 'Output & Hasil',
                         rows: [{
+                                icon: 'bx-arrow-to-bottom',
+                                label: 'Input',
+                                val: d.input,
+                                field: 'input',
+                                editable: true
+                            }, {
                                 icon: 'bx-package',
                                 label: 'JT PCS',
                                 val: d.jtpcs,
@@ -1438,7 +1440,7 @@
                             },
                             {
                                 icon: 'bx-stats',
-                                label: 'UPS PK',
+                                label: 'UPSPK',
                                 val: d.upspk,
                                 field: 'upspk',
                                 editable: true
