@@ -28,14 +28,26 @@
             'total_pengerjaan_pcs' => ['label' => 'Peng. PCS', 'code' => 'total_pengerjaan_pcs'],
         ];
 
-        $badgePalette = ['primary', 'success', 'warning', 'info', 'danger', 'dark', 'secondary'];
+        $badgePalette = ['primary', 'success', 'warning', 'info', 'danger', 'dark'];
 
         // Summary stats dihitung dari collection halaman saat ini
         $collection = $logs->getCollection();
-        $todayTotal = $collection->filter(fn($l) => optional($l->created_at)->isToday())->count();
+        $todayTotal = $collection
+            ->filter(function ($l) {
+                if (!$l->created_at) {
+                    return false;
+                }
+                try {
+                    $logDate = \Carbon\Carbon::parse($l->created_at)->format('Y-m-d');
+                    $todayDate = \Carbon\Carbon::now('Asia/Jakarta')->format('Y-m-d');
+                    return $logDate === $todayDate;
+                } catch (\Exception $e) {
+                    return false;
+                }
+            })
+            ->count();
         $uniqueProses = $collection->map(fn($l) => $l->prosesProduksi->proses ?? null)->filter()->unique()->count();
-        $topOperator =
-            $collection->groupBy(fn($l) => $l->user->name ?? '-')->map->count()->sortDesc()->keys()->first() ?? '–';
+        $spkTerlibat = $collection->map(fn($l) => $l->prosesProduksi->job ?? null)->filter()->unique()->count();
 
         $hasFilter = collect(['job', 'proses', 'user_id', 'field_name', 'tanggal_dari', 'tanggal_sampai'])->contains(
             fn($k) => request()->filled($k),
@@ -160,24 +172,13 @@
             background: rgba(105, 108, 255, .028);
         }
 
-        /* ── GitHub-style diff cells ────────────────────────────────────── */
-        .td-old {
-            background: rgba(220, 53, 69, .04) !important;
-            border-left: 3px solid rgba(220, 53, 69, .28) !important;
-        }
-
-        .td-new {
-            background: rgba(25, 135, 84, .04) !important;
-            border-left: 3px solid rgba(25, 135, 84, .28) !important;
-        }
-
         .diff-chip {
             display: inline-flex;
             align-items: flex-start;
             gap: 5px;
             padding: .22rem .6rem;
             border-radius: 7px;
-            font-size: .78rem;
+            font-size: .9rem;
             font-weight: 600;
             font-family: 'SFMono-Regular', 'Consolas', 'Courier New', monospace;
             max-width: 180px;
@@ -186,16 +187,12 @@
             line-height: 1.4;
         }
 
-        .diff-chip-old {
-            background: rgba(220, 53, 69, .10);
-            color: #b02a37;
-            border: 1px solid rgba(220, 53, 69, .18);
+        .diff-chip.text-danger {
+            color: #dc3545 !important;
         }
 
-        .diff-chip-new {
-            background: rgba(25, 135, 84, .10);
-            color: #146c43;
-            border: 1px solid rgba(25, 135, 84, .18);
+        .diff-chip.text-success {
+            color: #146c43 !important;
         }
 
         .diff-chip i {
@@ -217,6 +214,10 @@
             flex-direction: column;
             align-items: flex-start;
             gap: 0;
+            padding: .2rem .58rem;
+            border-radius: 8px;
+            background: rgba(105, 108, 255, .09);
+            border: 1px solid rgba(105, 108, 255, .14);
             padding: .2rem .58rem;
             border-radius: 8px;
             background: rgba(105, 108, 255, .09);
@@ -352,13 +353,27 @@
         .btn-refresh.spin i {
             animation: al-spin .5s linear;
         }
+
+        /* ── Webkit Date Picker Indicator Customization ─────────────────── */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238592a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat;
+            background-size: 14px 14px;
+            background-position: center;
+            opacity: 0.5;
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            opacity: 0.9;
+        }
     </style>
 
     <div class="container-xxl flex-grow-1 container-p-y">
 
-        {{-- ═══════════════════════════════════════════════════════════ --}}
-        {{-- PAGE HEADER                                                  --}}
-        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- PAGE HEADER  --}}
         <div class="d-flex align-items-start justify-content-between mb-4 gap-3 flex-wrap">
             <div>
                 <h4 class="fw-bold mb-1" style="letter-spacing:-.02em">Activity Log Produksi</h4>
@@ -367,6 +382,11 @@
                 </p>
             </div>
             <div class="d-flex gap-2 flex-shrink-0">
+                <a href="{{ route('proses-produksi.index') }}"
+                    class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+                    <i class="bx bx-arrow-back fs-5"></i>
+                    <span>Kembali</span>
+                </a>
                 <a href="{{ url()->current() }}"
                     class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1 btn-refresh" id="btnRefresh">
                     <i class="bx bx-refresh fs-5"></i>
@@ -375,9 +395,8 @@
             </div>
         </div>
 
-        {{-- ═══════════════════════════════════════════════════════════ --}}
-        {{-- SUMMARY STAT CARDS                                          --}}
-        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- SUMMARY STAT CARDS --}}
+
         <div class="row g-3 mb-4">
 
             {{-- Total Semua Log --}}
@@ -428,30 +447,9 @@
                 </div>
             </div>
 
-            {{-- Top Editor --}}
-            <div class="col-6 col-lg-3">
-                <div class="card al-stat h-100">
-                    <div class="card-body d-flex align-items-center gap-3 p-3">
-                        <div class="stat-icon-box bg-label-info">
-                            <i class="bx bx-user-check text-info"></i>
-                        </div>
-                        <div style="min-width:0; overflow:hidden">
-                            <div class="stat-val text-info"
-                                style="font-size:.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
-                                {{ $topOperator }}
-                            </div>
-                            <div class="stat-lbl">Top Editor</div>
-                            <div class="stat-sub">Paling aktif (hal ini)</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
 
-        {{-- ═══════════════════════════════════════════════════════════ --}}
-        {{-- FILTER CARD                                                  --}}
-        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- FILTER CARD --}}
         <div class="card al-card mb-4">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-1">
@@ -468,14 +466,33 @@
                 <form action="{{ url()->current() }}" method="GET" id="formFilter">
                     <div class="row g-2 mb-3">
 
-                        {{-- No. Job / SPK --}}
+                        {{-- No. Job --}}
                         <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-transparent border-end-0 text-muted">
-                                    <i class="bx bx-briefcase"></i>
-                                </span>
-                                <input type="text" name="job" class="form-control form-control-sm border-start-0"
-                                    placeholder="No. Job" value="{{ request('job') }}">
+                            <div class="position-relative">
+                                <div id="jobSearchWrapper"
+                                    class="input-group input-group-sm flex-nowrap align-items-center bg-white"
+                                    style="border: 1px solid #d9dee3; border-radius: 0.375rem; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; height: 31px; overflow: hidden;">
+                                    <span class="input-group-text bg-transparent border-0 text-muted pe-1">
+                                        <i class="bx bx-briefcase"></i>
+                                    </span>
+                                    <div id="alScrollableContainer"
+                                        class="d-flex align-items-center flex-grow-1 flex-nowrap"
+                                        style="overflow-x: auto; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none; height: 100%;">
+                                        <div id="alSelectedJobsContainer"
+                                            class="d-flex flex-nowrap align-items-center gap-1 py-1 ps-0">
+                                        </div>
+                                        <input type="text" id="alSearchJob"
+                                            class="form-control form-control-sm border-0 ps-1 bg-transparent"
+                                            placeholder="No. Job" autocomplete="off"
+                                            style="min-width: 50px; flex: 1 1 auto; font-size: 0.75rem; box-shadow: none; height: 100%; border: none;">
+                                    </div>
+                                </div>
+                                <input type="hidden" id="alSearchJobsHidden" name="job"
+                                    value="{{ request('job') }}">
+                                <div id="alJobSuggestions"
+                                    class="list-group position-absolute w-100 shadow-sm border rounded-3 overflow-hidden bg-white d-none"
+                                    style="z-index: 1055; top: calc(100% + 4px); max-height: 200px; overflow-y: auto;">
+                                </div>
                             </div>
                         </div>
 
@@ -489,7 +506,8 @@
                                     style="padding-left:.4rem">
                                     <option value="">Semua Proses</option>
                                     @foreach ($listProses as $p)
-                                        <option value="{{ $p }}" {{ request('proses') == $p ? 'selected' : '' }}>
+                                        <option value="{{ $p }}"
+                                            {{ request('proses') == $p ? 'selected' : '' }}>
                                             {{ $p }}
                                         </option>
                                     @endforeach
@@ -539,7 +557,7 @@
                         <div class="col-12 col-sm-12 col-md-8 col-lg-4">
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-transparent border-end-0 text-muted">
-                                    <i class="bx bx-calendar-range"></i>
+                                    <i class="bx bx-calendar"></i>
                                 </span>
                                 <input type="date" name="tanggal_dari"
                                     class="form-control form-control-sm border-start-0"
@@ -606,9 +624,7 @@
             </div>
         @endif
 
-        {{-- ═══════════════════════════════════════════════════════════ --}}
-        {{-- TABEL RIWAYAT — GitHub-style Visual Diff                    --}}
-        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- TABEL RIWAYAT --}}
         <div class="card al-card mb-4">
 
             <div class="card-header d-flex align-items-center justify-content-between">
@@ -641,19 +657,20 @@
                             <tr>
                                 <th style="width:44px">#</th>
                                 <th style="min-width:130px">Waktu</th>
-                                <th style="min-width:145px">User / Editor</th>
+                                <th style="min-width:145px">User</th>
                                 <th style="min-width:110px">No. Job</th>
+                                <th style="min-width:145px">Produk</th>
                                 <th style="min-width:130px">Proses Produksi</th>
-                                <th style="min-width:145px">Kolom (Field)</th>
-                                <th style="min-width:165px">
-                                    <span class="d-flex align-items-center gap-1">
+                                <th style="min-width:145px">Kolom</th>
+                                <th style="min-width:165px" class="text-start">
+                                    <span class="d-inline-flex align-items-center gap-1">
                                         <span
                                             style="width:7px;height:7px;border-radius:50%;background:#dc3545;display:inline-block"></span>
                                         Sebelum
                                     </span>
                                 </th>
-                                <th style="min-width:165px">
-                                    <span class="d-flex align-items-center gap-1">
+                                <th style="min-width:165px" class="text-start">
+                                    <span class="d-inline-flex align-items-center gap-1">
                                         <span
                                             style="width:7px;height:7px;border-radius:50%;background:#198754;display:inline-block"></span>
                                         Sesudah
@@ -664,18 +681,29 @@
                         <tbody>
                             @forelse($logs as $i => $log)
                                 @php
+                                    $produk = $log->prosesProduksi->product ?? '-';
                                     $proses = $log->prosesProduksi->proses ?? null;
-                                    $jobNo = $log->prosesProduksi->job ?? '–';
+                                    $jobNo = $log->prosesProduksi->job ?? '-';
                                     $rawField = $log->field_name ?? '';
                                     $fInfo = $fieldLabels[$rawField] ?? [
                                         'label' => ucwords(str_replace('_', ' ', $rawField)),
                                         'code' => $rawField,
                                     ];
-                                    $bColor = $proses
-                                        ? $badgePalette[abs(crc32($proses)) % count($badgePalette)]
-                                        : 'secondary';
+                                    $teksBadge = $proses ?? 'default';
+                                    $bColor = $badgePalette[abs(crc32($teksBadge)) % count($badgePalette)];
                                     $oldVal = $log->old_value;
                                     $newVal = $log->new_value;
+                                    $isNumericField = in_array($rawField, [
+                                        'input',
+                                        'jtdrik',
+                                        'jtpcs',
+                                        'outputpcs',
+                                        'outputdrik',
+                                        'total_pengerjaan_drik',
+                                        'total_pengerjaan_pcs',
+                                        'totaljam',
+                                        'upspk',
+                                    ]);
                                 @endphp
                                 <tr>
                                     {{-- No --}}
@@ -685,7 +713,7 @@
                                     <td class="text-nowrap">
                                         @if ($log->created_at)
                                             <div class="ts-d">
-                                                {{ \Carbon\Carbon::parse($log->created_at)->format('d/m/Y') }}</div>
+                                                {{ \Carbon\Carbon::parse($log->created_at)->format('d/m/y') }}</div>
                                             <div class="ts-t">
                                                 {{ \Carbon\Carbon::parse($log->created_at)->format('H:i:s') }}</div>
                                         @else
@@ -696,16 +724,16 @@
                                     {{-- User --}}
                                     <td class="text-nowrap">
                                         <div class="d-flex align-items-center gap-2">
-                                            <span class="uavatar">
-                                                {{ strtoupper(substr($log->user->name ?? 'U', 0, 1)) }}
-                                            </span>
                                             <span class="fw-semibold small">{{ $log->user->name ?? '–' }}</span>
                                         </div>
                                     </td>
 
                                     {{-- No. Job --}}
                                     <td class="text-nowrap">
-                                        <span class="fw-bold text-primary small">{{ $jobNo }}</span>
+                                        <span class="fw-bold small">{{ $jobNo }}</span>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <span class="fw-bold small">{{ $produk }}</span>
                                     </td>
 
                                     {{-- Proses Produksi --}}
@@ -720,35 +748,50 @@
                                         @endif
                                     </td>
 
-                                    {{-- Field --}}
+                                    {{-- Kolom --}}
                                     <td>
                                         <span class="field-pill">
                                             <span class="fp-label">{{ $fInfo['label'] }}</span>
-                                            @if ($fInfo['code'] !== $fInfo['label'])
-                                                <span class="fp-code">{{ $fInfo['code'] }}</span>
-                                            @endif
                                         </span>
                                     </td>
 
-                                    {{-- Sebelum (Old Value) —— red diff ──────────────── --}}
-                                    <td class="td-old">
+                                    {{-- Sebelum (Old Value) --}}
+                                    <td class="td-old text-start">
                                         @if ($oldVal !== null && $oldVal !== '')
-                                            <span class="diff-chip diff-chip-old">
-                                                <i class="bx bx-minus"></i>{{ $oldVal }}
+                                            <span class="diff-chip text-danger"
+                                                style="white-space: nowrap; max-width: none;">
+                                                @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
+                                                    {{ \Carbon\Carbon::parse($oldVal)->format('d/m/y H:i') }}
+                                                @else
+                                                    {{ is_numeric($oldVal) && $rawField !== 'job'
+                                                        ? (floor($oldVal) == $oldVal
+                                                            ? number_format((float) $oldVal, 0, ',', '.')
+                                                            : number_format((float) $oldVal, 2, ',', '.'))
+                                                        : $oldVal }}
+                                                @endif
                                             </span>
                                         @else
-                                            <span class="diff-null">null</span>
+                                            {!! $isNumericField
+                                                ? '<span class="diff-chip ' . ($oldVal === null || $oldVal === '' ? 'text-danger' : 'text-success') . '">0</span>'
+                                                : '<span class="diff-null">null</span>' !!}
                                         @endif
                                     </td>
 
-                                    {{-- Sesudah (New Value) —— green diff ───────────── --}}
-                                    <td class="td-new">
+                                    {{-- Sesudah (New Value) --}}
+                                    <td class="td-new text-start">
                                         @if ($newVal !== null && $newVal !== '')
-                                            <span class="diff-chip diff-chip-new">
-                                                <i class="bx bx-plus"></i>{{ $newVal }}
+                                            <span class="diff-chip text-success"
+                                                style="white-space: nowrap; max-width: none;">
+                                                @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
+                                                    {{ \Carbon\Carbon::parse($newVal)->format('d/m/y H:i') }}
+                                                @else
+                                                    {{ is_numeric($newVal) && $rawField !== 'job' ? (floor($newVal) == $newVal ? number_format((float) $newVal, 0, ',', '.') : number_format((float) $newVal, 2, ',', '.')) : $newVal }}
+                                                @endif
                                             </span>
                                         @else
-                                            <span class="diff-null">null</span>
+                                            {!! $isNumericField
+                                                ? '<span class="diff-chip ' . ($oldVal === null || $oldVal === '' ? 'text-danger' : 'text-success') . '">0</span>'
+                                                : '<span class="diff-null">null</span>' !!}
                                         @endif
                                     </td>
                                 </tr>
@@ -802,6 +845,165 @@
         document.getElementById('btnRefresh')?.addEventListener('click', function() {
             this.classList.add('spin');
         });
+
+        // ── Autocomplete Multi-tag Filter No. Job (Activity Log) ──────────────
+        (function($) {
+            const wrapperId = 'jobSearchWrapper';
+            const containerId = 'alSelectedJobsContainer';
+            const inputId = 'alSearchJob';
+            const hiddenId = 'alSearchJobsHidden';
+            const suggestionsId = 'alJobSuggestions';
+            const badgeClass = 'al-job-badge';
+
+            function renderBadges() {
+                const val = $('#' + hiddenId).val() || '';
+                const selectedItems = val.split(',').map(s => s.trim()).filter(Boolean);
+                const $container = $('#' + containerId);
+                $container.find('.' + badgeClass).remove();
+                if (selectedItems.length) {
+                    $('#' + inputId).attr('placeholder', '');
+                    selectedItems.forEach(function(item) {
+                        $('<span class="badge bg-label-primary rounded-pill px-2 d-inline-flex align-items-center gap-1 ' +
+                                badgeClass +
+                                '" style="font-size:0.7rem;line-height:1.2;flex-shrink:0;white-space:nowrap;">')
+                            .append($('<span class="fw-semibold">').text(item))
+                            .append($('<i class="bx bx-x cursor-pointer" style="font-size:11px;">').on('click',
+                                function(e) {
+                                    e.stopPropagation();
+                                    removeItem(item);
+                                }))
+                            .appendTo($container);
+                    });
+                } else {
+                    $('#' + inputId).attr('placeholder', 'No. Job');
+                }
+                const sc = $container.closest('.d-flex')[0];
+                if (sc) setTimeout(() => {
+                    sc.scrollLeft = sc.scrollWidth;
+                }, 50);
+            }
+
+            function removeItem(item) {
+                const val = $('#' + hiddenId).val() || '';
+                const items = val.split(',').map(s => s.trim()).filter(s => s && s !== item);
+                $('#' + hiddenId).val(items.join(', '));
+                renderBadges();
+            }
+
+            function addItem(item) {
+                const val = $('#' + hiddenId).val() || '';
+                const items = val.split(',').map(s => s.trim()).filter(Boolean);
+                if (!items.includes(item)) items.push(item);
+                $('#' + hiddenId).val(items.join(', '));
+                renderBadges();
+            }
+
+            renderBadges();
+
+            // Keydown: comma, semicolon, space → buat chip
+            $('#' + inputId).on('keydown', function(e) {
+                if (e.which === 188 || e.which === 186 || e.which === 32) {
+                    const v = $(this).val().trim().replace(/[,;]+$/, '');
+                    if (v) {
+                        e.preventDefault();
+                        addItem(v);
+                        $(this).val('');
+                        $('#' + suggestionsId).empty().addClass('d-none');
+                    }
+                }
+            });
+
+            // Keyup: autocomplete
+            $('#' + inputId).on('keyup', function(e) {
+                if (e.which === 13) return;
+                const keyword = $(this).val().trim();
+                if (keyword.length < 2) {
+                    $('#' + suggestionsId).empty().addClass('d-none');
+                    return;
+                }
+                $.get('{{ route('proses-produksi.search-suggestions') }}', {
+                    q: keyword,
+                    type: 'job'
+                }, function(response) {
+                    if (response.length) {
+                        let html = '';
+                        response.forEach(function(item) {
+                            html +=
+                                '<a href="#" class="list-group-item list-group-item-action border-0 px-3 py-2 d-flex align-items-center gap-2 pilih-al-job" data-value="' +
+                                item.job + '">' +
+                                '<i class="bx bx-briefcase text-primary" style="font-size:0.85rem;"></i>' +
+                                '<span class="fw-semibold" style="font-size:0.8rem;">' + item
+                                .job + '</span></a>';
+                        });
+                        $('#' + suggestionsId).html(html).removeClass('d-none');
+                    } else {
+                        $('#' + suggestionsId).empty().addClass('d-none');
+                    }
+                });
+            });
+
+            // Paste support
+            $('#' + inputId).on('paste', function(e) {
+                const pasted = (e.originalEvent.clipboardData || window.clipboardData).getData('Text');
+                if (pasted) {
+                    const items = pasted.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean);
+                    if (items.length > 1) {
+                        e.preventDefault();
+                        items.forEach(function(item) {
+                            addItem(item);
+                        });
+                        $(this).val('');
+                        $('#' + suggestionsId).empty().addClass('d-none');
+                    }
+                }
+            });
+
+            // Suggestion click
+            $(document).on('click', '.pilih-al-job', function(e) {
+                e.preventDefault();
+                addItem($(this).data('value'));
+                $('#' + suggestionsId).empty().addClass('d-none');
+                $('#' + inputId).val('').focus();
+            });
+
+            // Close on outside click
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('#' + suggestionsId + ', #' + wrapperId).length) {
+                    $('#' + suggestionsId).empty().addClass('d-none');
+                }
+            });
+
+            // Focus/blur styling
+            $('#' + inputId).on('focus', function() {
+                $('#' + wrapperId).css({
+                    'border-color': '#86b7fe',
+                    'box-shadow': '0 0 0 0.25rem rgba(13,110,253,0.25)'
+                });
+            }).on('blur', function() {
+                $('#' + wrapperId).css({
+                    'border-color': '',
+                    'box-shadow': ''
+                });
+            });
+
+            // Wrapper click → focus input
+            $('#' + wrapperId).on('click', function(e) {
+                if (e.target.id !== inputId && !$(e.target).closest('.' + badgeClass).length) {
+                    $('#' + inputId).focus();
+                }
+            });
+
+            // Form submit: flush typed value to chips
+            $('#' + wrapperId).closest('form').on('submit', function() {
+                const typed = $('#' + inputId).val().trim();
+                if (typed) {
+                    typed.split(/[\s,;|]+/).map(s => s.trim()).filter(Boolean).forEach(function(item) {
+                        addItem(item);
+                    });
+                    $('#' + inputId).val('');
+                }
+            });
+        })(jQuery);
     </script>
 
 @endsection

@@ -106,24 +106,12 @@ class ProsesProduksiController extends Controller
             $query->whereDate('tanggal', $filterTanggal);
         }
         if (! empty($filterDocket)) {
-            $docketsList = preg_split('/[\s,;|]+/', trim($filterDocket));
-            $docketsList = array_filter($docketsList);
-            if (count($docketsList) > 1) {
-                $query->where(function ($q) use ($docketsList) {
-                    foreach ($docketsList as $docketItem) {
-                        $q->orWhere('designno', 'like', '%'.$docketItem.'%');
-                    }
-                });
-            } elseif (count($docketsList) == 1) {
-                $query->where('designno', 'like', '%'.$docketsList[0].'%');
-            }
+            $query->where('designno', 'like', '%'.trim($filterDocket).'%');
         }
         if (! empty($filterProduct)) {
-            $productsList = preg_split('/[,;|]+/', trim($filterProduct));
-            $productsList = array_filter(array_map('trim', $productsList));
-            if (! empty($productsList)) {
-                $query->whereIn('product', $productsList);
-            }
+
+            $query->where('product', $productsList);
+
         }
         // 2.Logika filter rentang tanggal
         if (! empty($startDate) && ! empty($endDate)) {

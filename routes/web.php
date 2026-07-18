@@ -31,6 +31,5 @@ Route::put('/proses-produksi/{id}', [ProsesProduksiController::class, 'update'])
 // Route::middleware(['auth'])->group(function () {
 // Route utama untuk menampilkan halaman daftar Activity Log
 Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
-// (Opsional) Route API/AJAX jika Anda ingin menampilkan modal histori khusus untuk 1 baris Job tertentu
-// Route::get('/activity-logs/proses/{proses_produksi_id}', [ActivityLogController::class, 'showByProses'])->name('activity-logs.show-by-proses');
-// });
+// Route AJAX: Ambil log per baris Job (dipakai oleh modal detail di index & show)
+Route::get('/activity-logs/proses/{proses_produksi_id}', [ActivityLogController::class, 'showByProses'])->name('activity-logs.show-by-proses');

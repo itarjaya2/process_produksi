@@ -16,10 +16,18 @@
                 <i class="bx bx-plus fs-5"></i>
                 Rangkuman
             </a> --}}
-            <a href="{{ route('proses-produksi.create') }}" class="btn btn-primary d-flex align-items-center gap-1">
-                <i class="bx bx-plus fs-5"></i>
-                Tambah Data
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{{ route('activity-logs.index') }}" class="btn btn-outline-primary d-flex align-items-center gap-1">
+                    <i class="bx bx-history fs-5"></i>
+                    Activity Log
+                </a>
+                <a href="{{ route('proses-produksi.create') }}" class="btn btn-primary d-flex align-items-center gap-1">
+                    <i class="bx bx-plus fs-5"></i>
+                    Tambah Data
+                </a>
+            </div>
+
+
         </div>
 
         {{-- Flash Messages --}}
@@ -463,36 +471,54 @@
                                                 <td class="text-center fw-semibold">
                                                     {{ $data->outputdrik ? number_format($data->outputdrik, 0, ',', '.') : '0' }}
                                                 </td>
-                                                {{-- Toggle button — opens offcanvas --}}
-                                                <td class="text-center pe-4 d-flex gap-1">
-                                                    <button type="button"
-                                                        class="btn btn-sm btn-primary d-flex align-items-center gap-1 px-2 py-1"
-                                                        title="Lihat semua detail" style="font-size:.75rem"
-                                                        onclick="showDetail({{ json_encode([
-                                                            'id' => $data->id,
-                                                            'tanggal' => $data->tanggal ? strtolower(\Carbon\Carbon::parse($data->tanggal)->format('l - d - m - y')) : '-',
-                                                            'job' => $data->job ?? '-',
-                                                            'proses' => $data->proses ?? '-',
-                                                            'product' => $data->product ?? '-',
-                                                            'designno' => $data->designno ?? '-',
-                                                            'operator' => $data->operator ?? '-',
-                                                            'set' => $data->set ?? '-',
-                                                            'run' => $data->run ?? '-',
-                                                            'finish' => $data->finish ?? '-',
-                                                            'totaljam' => $data->totaljam ?? '0',
-                                                            'shift' => $data->shift ?? '0',
-                                                            'po' => $data->po ?? '0',
-                                                            'input' => $data->input ?? '0',
-                                                            'jtpcs' => $data->jtpcs ?? '0',
-                                                            'jtdrik' => $data->jtdrik ?? '0',
-                                                            'upspk' => $data->upspk ?? '0',
-                                                            'outputpcs' => $data->outputpcs ?? '0',
-                                                            'outputdrik' => $data->outputdrik ?? '0',
-                                                            'total_pengerjaan_drik' => $data->total_pengerjaan_drik ?? '0',
-                                                            'total_pengerjaan_pcs' => $data->total_pengerjaan_pcs ?? '0',
-                                                        ]) }})">Detail
-                                                        <i class="bx bx-show" style="font-size:.75rem"></i>
-                                                    </button>
+                                                {{-- Manage Dropdown --}}
+                                                <td class="text-center pe-4">
+                                                    <div class="dropdown">
+                                                        <button type="button"
+                                                            class="btn btn-sm btn-primary dropdown-toggle d-flex align-items-center gap-1 px-2 py-1"
+                                                            data-bs-toggle="dropdown" aria-expanded="false"
+                                                            style="font-size:.75rem">
+                                                            <i class="bx bx-cog" style="font-size:.8rem"></i> Manage
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                            <li>
+                                                                <a class="dropdown-item d-flex align-items-center gap-2"
+                                                                    href="#"
+                                                                    onclick="showDetail({{ json_encode([
+                                                                        'id' => $data->id,
+                                                                        'tanggal' => $data->tanggal ? strtolower(\Carbon\Carbon::parse($data->tanggal)->format('l - d - m - y')) : '-',
+                                                                        'job' => $data->job ?? '-',
+                                                                        'proses' => $data->proses ?? '-',
+                                                                        'product' => $data->product ?? '-',
+                                                                        'designno' => $data->designno ?? '-',
+                                                                        'operator' => $data->operator ?? '-',
+                                                                        'set' => $data->set ?? '-',
+                                                                        'run' => $data->run ?? '-',
+                                                                        'finish' => $data->finish ?? '-',
+                                                                        'totaljam' => $data->totaljam ?? '0',
+                                                                        'shift' => $data->shift ?? '0',
+                                                                        'po' => $data->po ?? '0',
+                                                                        'input' => $data->input ?? '0',
+                                                                        'jtpcs' => $data->jtpcs ?? '0',
+                                                                        'jtdrik' => $data->jtdrik ?? '0',
+                                                                        'upspk' => $data->upspk ?? '0',
+                                                                        'outputpcs' => $data->outputpcs ?? '0',
+                                                                        'outputdrik' => $data->outputdrik ?? '0',
+                                                                        'total_pengerjaan_drik' => $data->total_pengerjaan_drik ?? '0',
+                                                                        'total_pengerjaan_pcs' => $data->total_pengerjaan_pcs ?? '0',
+                                                                    ]) }})">
+                                                                    <i class="bx bx-show text-primary"></i> Detail
+                                                                </a>
+                                                            </li>
+                                                            <li>
+                                                                <a class="dropdown-item d-flex align-items-center gap-2"
+                                                                    href="#"
+                                                                    onclick="showActivityLog({{ $data->id }}, '{{ addslashes($data->job ?? '-') }}', '{{ addslashes($data->product ?? '-') }}')">
+                                                                    <i class="bx bx-history text-warning"></i> Riwayat
+                                                                </a>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @empty
@@ -574,6 +600,31 @@
                     </div>
                     <div class="modal-body" id="modalBody">
                         {{-- Filled dynamically by JS --}}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Modal Activity Log --}}
+        <div class="modal fade" id="modalActivityLog" tabindex="-1" aria-labelledby="modalActivityLogLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
+                <div class="modal-content">
+                    <div class="modal-header border-bottom">
+                        <h5 class="modal-title d-flex align-items-center gap-3 mb-4" id="modalActivityLogLabel">
+                            <i class="bx bx-history text-warning fs-4"></i>
+                            <span>Riwayat Perubahan</span>
+                            <span class="badge bg-label-warning" id="alBadgeCount"
+                                style="font-size:.68rem; border-radius:8px">–</span>
+                            <span class="text-muted fw-normal" id="alSubtitle" style="font-size: .8rem;">–</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0" id="alModalBody">
+                        <div class="d-flex align-items-center justify-content-center py-5 text-muted">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            <small>Memuat riwayat log…</small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -850,14 +901,20 @@
                         badgeClass,
                         itemKey,
                         icon,
-                        allowSpaces
+                        allowSpaces,
+                        isMulti = true
                     } = config;
 
                     function renderBadges() {
                         const val = $(`#${hiddenId}`).val() || '';
-                        const selectedItems = val.split(',').map(function(item) {
+                        let selectedItems = val.split(',').map(function(item) {
                             return item.trim();
                         }).filter(Boolean);
+
+                        if (!isMulti && selectedItems.length > 1) {
+                            selectedItems = selectedItems.slice(0, 1);
+                            $(`#${hiddenId}`).val(selectedItems[0]);
+                        }
 
                         const $container = $(`#${containerId}`);
                         const $placeholder = $(`#${placeholderId}`);
@@ -909,12 +966,16 @@
 
                     function addItem(item) {
                         const val = $(`#${hiddenId}`).val() || '';
-                        const selectedItems = val.split(',').map(function(i) {
+                        let selectedItems = val.split(',').map(function(i) {
                             return i.trim();
                         }).filter(Boolean);
 
-                        if (!selectedItems.includes(item)) {
-                            selectedItems.push(item);
+                        if (!isMulti) {
+                            selectedItems = [item];
+                        } else {
+                            if (!selectedItems.includes(item)) {
+                                selectedItems.push(item);
+                            }
                         }
 
                         $(`#${hiddenId}`).val(selectedItems.join(', '));
@@ -988,11 +1049,15 @@
                         if (pastedData) {
                             const regex = allowSpaces ? /[,;|]+/ : /[\s,;|]+/;
                             const items = pastedData.split(regex).map(s => s.trim()).filter(Boolean);
-                            if (items.length > 1) {
+                            if (items.length > 1 || (!isMulti && items.length > 0)) {
                                 e.preventDefault();
-                                items.forEach(function(item) {
-                                    addItem(item);
-                                });
+                                if (!isMulti) {
+                                    addItem(items[0]);
+                                } else {
+                                    items.forEach(function(item) {
+                                        addItem(item);
+                                    });
+                                }
                                 $(this).val('');
                                 $(`#${suggestionsId}`).empty().addClass('d-none');
                             }
@@ -1040,9 +1105,15 @@
                         if (typedVal) {
                             const regex = allowSpaces ? /[,;|]+/ : /[\s,;|]+/;
                             const items = typedVal.split(regex).map(s => s.trim()).filter(Boolean);
-                            items.forEach(function(item) {
-                                addItem(item);
-                            });
+                            if (items.length > 0) {
+                                if (!isMulti) {
+                                    addItem(items[0]);
+                                } else {
+                                    items.forEach(function(item) {
+                                        addItem(item);
+                                    });
+                                }
+                            }
                             $(`#${inputId}`).val('');
                         }
                     });
@@ -1074,7 +1145,8 @@
                     badgeClass: 'docket-badge',
                     itemKey: 'designno',
                     icon: 'bx-barcode',
-                    allowSpaces: false
+                    allowSpaces: false,
+                    isMulti: false
                 });
 
                 setupAutocompleteFilter({
@@ -1088,7 +1160,8 @@
                     badgeClass: 'product-badge',
                     itemKey: 'product',
                     icon: 'bx-box',
-                    allowSpaces: true
+                    allowSpaces: true,
+                    isMulti: false
                 });
 
                 setupAutocompleteFilter({
@@ -1551,6 +1624,143 @@
 
                 modalBody.innerHTML = html;
                 modalBs.show();
+            }
+        </script>
+
+        {{-- script modal log --}}
+        <script>
+            // ── showActivityLog : modal tersendiri ──────────────────────
+            const AL_FIELD_MAP = {
+                job: 'No. Job',
+                proses: 'Proses',
+                product: 'Produk',
+                designno: 'Docket',
+                operator: 'Operator',
+                tanggal: 'Tanggal',
+                shift: 'Shift',
+                upspk: 'UP SPK',
+                input: 'Input',
+                jtdrik: 'JT Drik',
+                jtpcs: 'JT PCS',
+                outputpcs: 'Output PCS',
+                outputdrik: 'Output Drik',
+                po: 'PO',
+                set: 'Set',
+                run: 'Run',
+                finish: 'Finish',
+                totaljam: 'Total Jam',
+                total_pengerjaan_drik: 'Peng. Drik',
+                total_pengerjaan_pcs: 'Peng. PCS'
+            };
+
+            function showActivityLog(id, job, product) {
+                const alModal = new bootstrap.Modal(document.getElementById('modalActivityLog'));
+                const alBody = document.getElementById('alModalBody');
+                const alBadge = document.getElementById('alBadgeCount');
+                const alSubtitle = document.getElementById('alSubtitle');
+
+                // Reset state
+                alSubtitle.textContent = 'No. Job: ' + job + ' | Produk: ' + (product || '-');
+                alBadge.textContent = '–';
+                alBody.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-center py-5 text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        <small>Memuat riwayat log…</small>
+                    </div>`;
+                alModal.show();
+
+
+                fetch(`/activity-logs/proses/${id}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        const logs = res.data ?? [];
+                        alBadge.textContent = logs.length + ' log';
+
+                        if (!logs.length) {
+                            alBody.innerHTML = `
+                                <div class="text-center py-5 text-muted">
+                                    <i class="bx bx-folder-open text-center mb-2" style="font-size:2.5rem;opacity:.2"></i>
+                                    <p class="fw-semibold mb-1" style="color:#697a8d">Belum Ada Riwayat Perubahan</p>
+                                    <small>Tidak ada log aktivitas untuk baris ini.</small>
+                                </div>`;
+                            return;
+                        }
+
+                        const isNull = v => v === null || v === '' || v === undefined;
+
+                        // modal body
+                        const rows = logs.map((l, i) => {
+                            const niceField = AL_FIELD_MAP[l.field] ?? l.field;
+                            const isNumericField = ['input', 'jtdrik', 'jtpcs', 'outputpcs', 'outputdrik', 'total_pengerjaan_drik', 'total_pengerjaan_pcs', 'totaljam', 'upspk'].includes(l.field);
+                            const isDateField = ['tanggal', 'set', 'run', 'finish'].includes(l.field);
+                            const formatDateVal = (v) => {
+                                if (!v) return '';
+                                try {
+                                    const d = new Date(v);
+                                    if (isNaN(d)) return v;
+                                    const dd = String(d.getDate()).padStart(2, '0');
+                                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                                    const yy = String(d.getFullYear()).slice(-2);
+                                    const hh = String(d.getHours()).padStart(2, '0');
+                                    const min = String(d.getMinutes()).padStart(2, '0');
+                                    return `${dd}/${mm}/${yy} ${hh}:${min}`;
+                                } catch(e) { return v; }
+                            };
+                            const oldHtml = isNull(l.old) ?
+                                (isNumericField ? `<span style="font-size:.9rem;font-weight:600;font-family:monospace;color:#dc3545">0</span>` : `<span style="color:#c4c8d0;font-style:italic;font-size:.74rem">null</span>`) :
+                                `<span style="font-size:.9rem;font-weight:600;font-family:monospace;color:#dc3545;white-space:nowrap;">${isDateField ? formatDateVal(l.old) : l.old}</span>`;
+                            const newHtml = isNull(l.new) ?
+                                (isNumericField ? `<span style="font-size:.9rem;font-weight:600;font-family:monospace;color:#146c43">0</span>` : `<span style="color:#c4c8d0;font-style:italic;font-size:.74rem">null</span>`) :
+                                `<span style="font-size:.9rem;font-weight:600;font-family:monospace;color:#146c43;white-space:nowrap;">${isDateField ? formatDateVal(l.new) : l.new}</span>`;
+
+                            return `
+                            <tr>
+                                <td style="color:#c4c6cc;font-size:.67rem;font-family:monospace;white-space:nowrap;padding:.7rem .9rem">${i + 1}</td>
+                                <td style="white-space:nowrap;padding:.7rem .9rem">
+                                    <div style="font-weight:600;font-size:.8rem">${l.waktu.split(' ')[0] ?? ''}</div>
+                                    <div style="font-size:.68rem;color:#8592a3;font-family:monospace">${l.waktu.split(' ')[1] ?? ''}</div>
+                                </td>
+                                <td style="white-space:nowrap;padding:.7rem .9rem">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span style="font-size:.8rem;font-weight:600">${l.user}</span>
+                                    </div>
+                                </td>
+                                <td style="padding:.7rem .9rem">
+                                    <span style="display:inline-flex;flex-direction:column;padding:.2rem .58rem;border-radius:7px;background:rgba(105,108,255,.09);border:1px solid rgba(105,108,255,.13)">
+                                        <span style="font-size:.74rem;font-weight:600;color:#696cff;line-height:1.2">${niceField}</span>
+                                        
+                                    </span>
+                                </td>
+                                <td class="text-center" style="padding:.7rem .9rem">${oldHtml}</td>
+                                <td class="text-center" style="padding:.7rem .9rem">${newHtml}</td>
+                            </tr>`;
+                        }).join('');
+
+                        alBody.innerHTML = `
+                            <div style="overflow-x:auto;scrollbar-width:thin;scrollbar-color:rgba(105,108,255,.18) transparent">
+                                <table class="table table-sm table-hover mb-0 align-middle" style="min-width:640px">
+                                    <thead style="background:#f5f5f9">
+                                        <tr>
+                                            <th style="font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#697a8d;padding:.72rem .9rem;border-bottom:2px solid rgba(105,108,255,.1);width:38px">#</th>
+                                            <th style="font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#697a8d;padding:.72rem .9rem;border-bottom:2px solid rgba(105,108,255,.1)">Waktu</th>
+                                            <th style="font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#697a8d;padding:.72rem .9rem;border-bottom:2px solid rgba(105,108,255,.1)">User</th>
+                                            <th style="font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#697a8d;padding:.72rem .9rem;border-bottom:2px solid rgba(105,108,255,.1)">Kolom</th>
+                                            <th class="text-center" style="font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#697a8d;padding:.72rem .9rem;border-bottom:2px solid rgba(105,108,255,.1)">
+                                                <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:#dc3545;display:inline-block"></span>Sebelum</span>
+                                            </th>
+                                            <th class="text-center" style="font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#697a8d;padding:.72rem .9rem;border-bottom:2px solid rgba(105,108,255,.1)">
+                                                <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:#198754;display:inline-block"></span>Sesudah</span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="font-size:.81rem">${rows}</tbody>
+                                </table>
+                            </div>`;
+                    })
+                    .catch(() => {
+                        alBody.innerHTML =
+                            `<div class="text-center py-4 text-danger small"><i class="bx bx-error-circle me-1"></i>Gagal memuat riwayat log.</div>`;
+                    });
             }
         </script>
 

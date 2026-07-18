@@ -4,15 +4,12 @@ namespace App\Http\Controllers\produksi;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\ProsesProduksi;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ActivityLogController extends Controller
 {
-    /**
-     * Menampilkan halaman utama daftar seluruh Activity Log
-     */
     public function index(Request $request)
     {
         // 1. Mulai query dengan Eager Loading ('prosesProduksi' & 'user')
@@ -24,7 +21,17 @@ class ActivityLogController extends Controller
         // Filter 1: Pencarian berdasarkan Nomor Job
         if ($request->filled('job')) {
             $query->whereHas('prosesProduksi', function ($q) use ($request) {
-                $q->where('job', 'like', '%'.trim($request->job).'%');
+                $jobsList = preg_split('/[\s,;|]+/', trim($request->job));
+                $jobsList = array_filter($jobsList);
+                if (count($jobsList) > 1) {
+                    $q->where(function ($innerQuery) use ($jobsList) {
+                        foreach ($jobsList as $jobItem) {
+                            $innerQuery->orWhere('job', 'like', '%'.$jobItem.'%');
+                        }
+                    });
+                } elseif (count($jobsList) == 1) {
+                    $q->where('job', 'like', '%'.$jobsList[0].'%');
+                }
             });
         }
 
@@ -59,9 +66,8 @@ class ActivityLogController extends Controller
 
         // 2. Pengurutan & Pagination
         // Ambil data terbaru terlebih dahulu, tampilkan 50 baris per halaman
-        // withQueryString() berguna supaya URL filter tidak hilang saat klik halaman page 2, 3, dst.
         $logs = $query->latest('created_at')
-            ->paginate(50)
+            ->paginate(10)
             ->withQueryString();
 
         // 3. Siapkan data untuk opsi Dropdown Filter di halaman UI
@@ -79,21 +85,22 @@ class ActivityLogController extends Controller
 
     /**
      * Menampilkan riwayat log khusus untuk 1 baris Job/Proses tertentu
-     * (Berguna untuk dipanggil via AJAX ke dalam Pop-up Modal di halaman Show Job)
      */
     public function showByProses($proses_produksi_id)
     {
         $logs = ActivityLog::with('user')
             ->where('proses_produksi_id', $proses_produksi_id)
-            ->latest('created_at')
+            ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($log) {
                 return [
-                    'waktu' => $log->created_at->format('d/m/Y H:i'),
-                    'user' => $log->user->name ?? 'System',
-                    'field' => ucwords(str_replace('_', ' ', $log->field_name)),
-                    'old' => $log->old_value ?? '-',
-                    'new' => $log->new_value ?? '-',
+                    'waktu' => $log->created_at
+                        ? Carbon::parse($log->created_at)->format('d/m/y H:i:s')
+                        : '-',
+                    'user' => optional($log->user)->name ?? 'System',
+                    'field' => $log->field_name,
+                    'old' => $log->old_value,
+                    'new' => $log->new_value,
                 ];
             });
 
