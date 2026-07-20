@@ -373,6 +373,8 @@ class ProsesProduksiController extends Controller
 
         foreach ($masterProses as $prosesName) {
             $jam = 0;
+            // tambah input
+            $input = 0;
             $jtdrik = 0;
             $jtpcs = 0;
             $outputdrik = 0;
@@ -396,6 +398,8 @@ class ProsesProduksiController extends Controller
                     $itemOutputdrik = $itemUpspk > 0 ? $itemOutputpcs / $itemUpspk : 0;
 
                     $jam += (float) ($item->totaljam ?? 0);
+                    // tambah input
+                    $input += $itemInput;
                     $jtdrik += $itemJtdrik;
                     $jtpcs += $itemJtpcs;
                     $outputdrik += $itemOutputdrik;
@@ -417,6 +421,8 @@ class ProsesProduksiController extends Controller
                     $itemOutputdrik = $itemUpspk > 0 ? $itemInput / $itemUpspk : 0;
 
                     $jam += (float) ($item->totaljam ?? 0);
+                    // input
+                    $input += $itemInput;
                     $jtdrik += 0;
                     $jtpcs += 0;
                     $outputdrik += $itemOutputdrik;
@@ -429,6 +435,8 @@ class ProsesProduksiController extends Controller
                     return strtoupper(trim((string) $item->proses)) === $prosesName;
                 });
                 $jam = $dataPerProses->sum('totaljam');
+                // tambah input
+                $input = $dataPerProses->sum(fn ($item) => (float) str_replace('.', '', (string) ($item->input ?? 0)));
                 $jtdrik = $dataPerProses->sum('jtdrik');
                 $jtpcs = $dataPerProses->sum('jtpcs');
                 $outputdrik = $dataPerProses->sum('outputdrik');
@@ -440,6 +448,8 @@ class ProsesProduksiController extends Controller
             $rangkuman[] = [
                 'proses' => $prosesName,
                 'jam' => $jam,
+                // tambah input
+                'input' => $input,
                 'jt_drik' => $jtdrik,
                 'jt_pcs' => $jtpcs,
                 'output_drik' => $outputdrik,
