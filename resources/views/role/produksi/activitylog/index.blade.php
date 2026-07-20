@@ -109,7 +109,16 @@
             border: none;
             border-radius: 14px;
             box-shadow: 0 1px 8px rgba(105, 108, 255, .08), 0 1px 3px rgba(0, 0, 0, .04);
-            overflow: hidden;
+            position: relative;
+        }
+
+        .al-card-filter {
+            z-index: 100;
+            overflow: visible;
+        }
+
+        .al-card-table {
+            z-index: 1;
         }
 
         .al-card>.card-header {
@@ -376,7 +385,7 @@
         {{-- PAGE HEADER  --}}
         <div class="d-flex align-items-start justify-content-between mb-4 gap-3 flex-wrap">
             <div>
-                <h4 class="fw-bold mb-1" style="letter-spacing:-.02em">Activity Log Produksi</h4>
+                <h4 class="fw-bold mb-1" style="letter-spacing:-.02em">Activity Log Prodution</h4>
                 <p class="text-muted mb-0 small">
                     Riwayat lengkap setiap perubahan data — siapa mengubah apa, kapan, serta nilai sebelum &amp; sesudahnya.
                 </p>
@@ -400,7 +409,7 @@
         <div class="row g-3 mb-4">
 
             {{-- Total Semua Log --}}
-            <div class="col-6 col-lg-3">
+            <div class="col-6 col-lg-4">
                 <div class="card al-stat h-100">
                     <div class="card-body d-flex align-items-center gap-3 p-3">
                         <div class="stat-icon-box bg-label-primary">
@@ -416,7 +425,7 @@
             </div>
 
             {{-- Aktivitas Hari Ini --}}
-            <div class="col-6 col-lg-3">
+            <div class="col-6 col-lg-4">
                 <div class="card al-stat h-100">
                     <div class="card-body d-flex align-items-center gap-3 p-3">
                         <div class="stat-icon-box bg-label-success">
@@ -432,7 +441,7 @@
             </div>
 
             {{-- Proses Unik (halaman ini) --}}
-            <div class="col-6 col-lg-3">
+            <div class="col-6 col-lg-4">
                 <div class="card al-stat h-100">
                     <div class="card-body d-flex align-items-center gap-3 p-3">
                         <div class="stat-icon-box bg-label-warning">
@@ -450,7 +459,7 @@
         </div>
 
         {{-- FILTER CARD --}}
-        <div class="card al-card mb-4">
+        <div class="card al-card al-card-filter mb-4">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-1">
                     <i class="bx bx-filter-alt text-primary fs-5"></i>
@@ -495,6 +504,7 @@
                                 </div>
                             </div>
                         </div>
+                        {{-- END No. Job --}}
 
                         {{-- Proses Produksi --}}
                         <div class="col-12 col-sm-6 col-md-4 col-lg-2">
@@ -625,7 +635,7 @@
         @endif
 
         {{-- TABEL RIWAYAT --}}
-        <div class="card al-card mb-4">
+        <div class="card al-card al-card-table mb-4">
 
             <div class="card-header d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2">
