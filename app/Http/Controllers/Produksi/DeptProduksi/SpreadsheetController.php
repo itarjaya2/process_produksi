@@ -1,9 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\produksi;
+namespace App\Http\Controllers\Produksi\DeptProduksi;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessSpreadsheetAndDbJob;
 use App\Models\ActivityLog;
+use App\Models\Karyawan;
+use App\Models\Karyawanstaff;
+use App\Models\Prodev;
 use App\Models\ProsesProduksi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -11,30 +15,206 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
-class ProsesProduksiController extends Controller
+class SpreadsheetController extends Controller
 {
+    // create proses spreadsheet
+    public function index()
+    {
+        $karyawan = Karyawan::all();
+        $karyawanstaff = Karyawanstaff::all();
+        $job = Prodev::all();
+
+        return view('role.produksi.produksidept.proses.spreadsheet', compact('karyawan', 'karyawanstaff', 'job'));
+    }
+
+    public function getJob($id)
+    {
+        $job = Prodev::find($id);
+        if ($job) {
+            return response()->json([
+                'product' => $job->product ?? '',
+                'designno' => $job->designno ?? '',
+                'po' => $job->po ?? '',
+                'qty' => $job->qty ?? '',
+            ]);
+        }
+
+        return response()->json([], 404);
+    }
+
+    public function store(Request $request)
+    {
+        // Validasi: (SEMUA RULES ANDA DISALIN LENGKAP)
+        $rules = [
+            'proses' => 'required|array|min:1',
+            'proses.*' => 'required|string',
+            'job' => 'nullable|array',
+            'job.*' => 'nullable|string',
+            'product' => 'nullable|array',
+            'product.*' => 'nullable|string',
+            'designno' => 'nullable|array',
+            'designno.*' => 'nullable|string',
+            'po' => 'nullable|array',
+            'po.*' => 'nullable|string',
+            'qty' => 'nullable|array',
+            'qty.*' => 'nullable|string',
+            'pengawas' => 'nullable|array',
+            'pengawas.*' => 'nullable|string',
+            'shiftpengawas' => 'nullable|array',
+            'shiftpengawas.*' => 'nullable|string',
+            'upspk' => 'nullable|array',
+            'upspk.*' => 'nullable|string',
+            'tanggal' => 'nullable|array',
+            'tanggal.*' => 'nullable|string',
+            'mesin' => 'nullable|array',
+            'mesin.*' => 'nullable|string',
+            'vendormat' => 'nullable|array',
+            'vendormat.*' => 'nullable|string',
+            'shift' => 'nullable|array',
+            'shift.*' => 'nullable|string',
+            'palet' => 'nullable|array',
+            'palet.*' => 'nullable|string',
+            'set' => 'nullable|array',
+            'set.*' => 'nullable|string',
+            'operator' => 'nullable|array',
+            'operator.*' => 'nullable|string',
+            'jumlahtim' => 'nullable|array',
+            'jumlahtim.*' => 'nullable|string',
+            'run' => 'nullable|array',
+            'run.*' => 'nullable|string',
+            'finish' => 'nullable|array',
+            'finish.*' => 'nullable|string',
+            'break' => 'nullable|array',
+            'break.*' => 'nullable|string',
+            'totaljam' => 'nullable|array',
+            'totaljam.*' => 'nullable|string',
+            'input' => 'nullable|array',
+            'input.*' => 'nullable|string',
+            'ket' => 'nullable|array',
+            'ket.*' => 'nullable|string',
+            'jtdrik' => 'nullable|array',
+            'jtdrik.*' => 'nullable|string',
+            'target' => 'nullable|array',
+            'target.*' => 'nullable|string',
+            'karantina' => 'nullable|array',
+            'karantina.*' => 'nullable|string',
+            'outputdrik' => 'nullable|array',
+            'outputdrik.*' => 'nullable|string',
+            'type' => 'nullable|array',
+            'type.*' => 'nullable|string',
+            'toleransi' => 'nullable|array',
+            'toleransi.*' => 'nullable|string',
+            'ok' => 'nullable|array',
+            'ok.*' => 'nullable|string',
+            'jtpcs' => 'nullable|array',
+            'jtpcs.*' => 'nullable|string',
+            'warna' => 'nullable|array',
+            'warna.*' => 'nullable|string',
+            'banjir' => 'nullable|array',
+            'banjir.*' => 'nullable|string',
+            'beset' => 'nullable|array',
+            'beset.*' => 'nullable|string',
+            'notok' => 'nullable|array',
+            'notok.*' => 'nullable|string',
+            'powder' => 'nullable|array',
+            'powder.*' => 'nullable|string',
+            'wb' => 'nullable|array',
+            'wb.*' => 'nullable|string',
+            'uvkasar' => 'nullable|array',
+            'uvkasar.*' => 'nullable|string',
+            'uvmbleset' => 'nullable|array',
+            'uvmbleset.*' => 'nullable|string',
+            'tidakuv' => 'nullable|array',
+            'tidakuv.*' => 'nullable|string',
+            'hotprint' => 'nullable|array',
+            'hotprint.*' => 'nullable|string',
+            'laminating' => 'nullable|array',
+            'laminating.*' => 'nullable|string',
+            'laminasikurang' => 'nullable|array',
+            'laminasikurang.*' => 'nullable|string',
+            'laminasi' => 'nullable|array',
+            'laminasi.*' => 'nullable|string',
+            'tidakpresisi' => 'nullable|array',
+            'tidakpresisi.*' => 'nullable|string',
+            'pecah' => 'nullable|array',
+            'pecah.*' => 'nullable|string',
+            'emboss' => 'nullable|array',
+            'emboss.*' => 'nullable|string',
+            'porforasi' => 'nullable|array',
+            'porforasi.*' => 'nullable|string',
+            'sobek' => 'nullable|array',
+            'sobek.*' => 'nullable|string',
+            'lengket' => 'nullable|array',
+            'lengket.*' => 'nullable|string',
+            'll' => 'nullable|array',
+            'll.*' => 'nullable|string',
+            'noteoperator' => 'nullable|array',
+            'noteoperator.*' => 'nullable|string',
+        ];
+
+        // 1. Validasi data
+        try {
+            $validated = $request->validate($rules);
+            $rowsCount = count($validated['proses'] ?? []);
+
+            if ($rowsCount === 0) {
+                return back()->with('error', 'Tidak ada baris untuk disimpan.');
+            }
+
+        } catch (ValidationException $e) {
+            // Jika validasi gagal, kembalikan seperti biasa
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        // 2. Kirim data ke Job untuk diproses di background
+        try {
+            // Kita hanya perlu melempar data yang sudah divalidasi
+            ProcessSpreadsheetAndDbJob::dispatch($validated);
+
+            // 3. Langsung beri respon ke user (JANGAN DITUNGGU)
+            return back()->with('success', 'Berhasil! '.$rowsCount.' baris data berhasil terkirim. Ini mungkin perlu beberapa menit untuk tampil di spreadsheet.');
+
+        } catch (\Exception $e) {
+            Log::error('Gagal dispatch job: '.$e->getMessage());
+
+            return back()->with('error', 'Terjadi kesalahan internal saat memproses request.');
+        }
+    }
+
     public function calculateDerivedValues($record)
     {
         // Pastikan nilai input, jtdrik, dan upspk adalah angka sebelum melakukan perhitungan
         $input = (float) str_replace('.', '', (string) ($record->input ?? 0));
         $jtdrik = (float) str_replace('.', '', (string) ($record->jtdrik ?? 0));
         $upspk = (float) str_replace('.', '', (string) ($record->upspk ?? 0));
+        $jtpcs = (float) str_replace('.', '', (string) ($record->jtpcs ?? 0));
         $prosesName = strtolower((string) ($record->proses ?? ''));
 
+        $record->jtpcs = $jtpcs;
         $record->input = $input;
         $record->jtdrik = $jtdrik;
         $record->upspk = $upspk;
 
-        if ($prosesName === 'lem') {
-            $record->jtdrik = $upspk > 0 ? $input / $upspk : 0;
-            $record->jtpcs = $input;
-            $record->outputdrik = $input - $record->jtdrik;
-            $record->outputpcs = $record->outputdrik * $upspk;
+        // input = output pcs
+        if (in_array($prosesName, [
+            'lem',
+            'lem setengah jadi',
+            'sortir lem',
+            'sortir cetak',
+        ])) {
+            // jtdrik = jtpcs/upspk
+            $record->jtdrik = $upspk > 0 ? $record->jtpcs / $upspk : 0;
+            // outputpcs = input - jt pcs
+            $record->outputpcs = $input - $record->jtpcs;
+            // outputdrik = outputpcs/upspk
+            $record->outputdrik = $upspk > 0 ? $record->outputpcs / $upspk : 0;
+            // $record->outputpcs = $record->outputdrik * $upspk;
             $record->total_pengerjaan_drik = $record->jtdrik + $record->outputdrik;
             $record->total_pengerjaan_pcs = $record->jtpcs + $record->outputpcs;
 
             return $record;
         }
+
         if ($prosesName === 'sortpacking') {
             // input, jtdrik, jtpcs berasal dari database
             $record->outputpcs = $input;
@@ -56,10 +236,12 @@ class ProsesProduksiController extends Controller
         return $record;
     }
 
-    public function index(Request $request)
+    // list data proses
+    public function indexdata(Request $request)
     {
         // 1.Tangkap input tanggal dari form filter
         $filterProses = $request->get('proses');
+        $filterMesin = $request->get('mesin');
         $filterId = $request->get('id');
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
@@ -71,11 +253,15 @@ class ProsesProduksiController extends Controller
 
         $query = ProsesProduksi::query();
 
+        // filter
         if (! empty($filterId)) {
             $query->where('id', $filterId);
         }
         if (! empty($filterProses)) {
             $query->where('proses', $filterProses);
+        }
+        if (! empty($filterMesin)) {
+            $query->where('mesin', $filterMesin);
         }
         // filter multi job di index
         if (! empty($filterJob)) {
@@ -106,12 +292,24 @@ class ProsesProduksiController extends Controller
             $query->whereDate('tanggal', $filterTanggal);
         }
         if (! empty($filterDocket)) {
-            $query->where('designno', 'like', '%'.trim($filterDocket).'%');
+            $docketsList = preg_split('/[\s,;|]+/', trim($filterDocket));
+            $docketsList = array_filter($docketsList);
+            if (count($docketsList) > 1) {
+                $query->where(function ($q) use ($docketsList) {
+                    foreach ($docketsList as $docketItem) {
+                        $q->orWhere('designno', 'like', '%'.$docketItem.'%');
+                    }
+                });
+            } elseif (count($docketsList) == 1) {
+                $query->where('designno', 'like', '%'.$docketsList[0].'%');
+            }
         }
         if (! empty($filterProduct)) {
-
-            $query->where('product', $productsList);
-
+            $productsList = preg_split('/[,;|]+/', trim($filterProduct));
+            $productsList = array_filter(array_map('trim', $productsList));
+            if (! empty($productsList)) {
+                $query->whereIn('product', $productsList);
+            }
         }
         // 2.Logika filter rentang tanggal
         if (! empty($startDate) && ! empty($endDate)) {
@@ -130,6 +328,7 @@ class ProsesProduksiController extends Controller
             'job' => 'job',
             'docket' => 'designno',
             'proses' => 'proses',
+            'mesin' => 'mesin',
             'product' => 'product',
             'operator' => 'operator',
             'tanggal' => 'tanggal',
@@ -145,7 +344,7 @@ class ProsesProduksiController extends Controller
         }
 
         // Bagian ini sudah sangat tepat karena pakai ->appends($request->query())
-        $prosesProduksi = $query->paginate(9)->appends($request->query());
+        $prosesProduksi = $query->paginate(10)->appends($request->query());
 
         foreach ($prosesProduksi as $data) {
             $totalJam = 0;
@@ -157,7 +356,7 @@ class ProsesProduksiController extends Controller
 
                 $selisihMenit = $waktuMulai->diffInMinutes($waktuFinish);
                 $totalJam = $selisihMenit / 60;
-
+                // jika break true kurangi 1 jam
                 if (strtoupper($data->break) === 'TRUE' || $data->break == 1) {
                     $totalJam -= 1;
                 }
@@ -169,13 +368,20 @@ class ProsesProduksiController extends Controller
         }
 
         // =================================================================
-        // PERBAIKAN: Tarik daftar proses yang unik langsung dari database!
+        // PERBAIKAN: Tarik daftar proses & mesin unik langsung dari database!
         // =================================================================
         $daftarProses = ProsesProduksi::select('proses')
             ->whereNotNull('proses')
             ->distinct()
             ->orderBy('proses')
             ->pluck('proses');
+
+        $daftarMesin = ProsesProduksi::select('mesin')
+            ->whereNotNull('mesin')
+            ->where('mesin', '!=', '')
+            ->distinct()
+            ->orderBy('mesin')
+            ->pluck('mesin');
 
         // Ambil data
         $data = $query->get();
@@ -189,21 +395,11 @@ class ProsesProduksiController extends Controller
             'outputdrik' => $prosesProduksi->sum(fn ($x) => (float) ($x->outputdrik ?? 0)),
         ];
 
-        return view('role.produksi.proses_produksi.index', compact('prosesProduksi', 'daftarProses', 'total'));
+        return view('role.produksi.produksidept.proses.index', compact('prosesProduksi', 'daftarProses', 'daftarMesin', 'total'));
     }
 
-    public function create()
-    {
-        $jobs = ProsesProduksi::select('job')
-            ->whereNotNull('job')
-            ->distinct()
-            ->orderBy('job')
-            ->get();
-
-        return view('role.produksi.proses_produksi.create', compact('jobs'));
-    }
-
-    public function show(Request $request, $job_id)
+    // report proses
+    public function report(Request $request, $job_id)
     {
         // 1. CARI NOMOR DOCKET DARI JOB INI
         $firstRecord = ProsesProduksi::where('job', $job_id)->first();
@@ -211,6 +407,7 @@ class ProsesProduksiController extends Controller
             abort(404, 'Job tidak ditemukan.');
         }
         $docket = $firstRecord->designno ?? '-';
+        $product = $firstRecord->product ?? '-';
 
         // 2. KUMPULKAN DAFTAR NOMOR JOB YANG AKAN DITAMPILKAN
         $jobsToQuery = [];
@@ -231,7 +428,7 @@ class ProsesProduksiController extends Controller
                         ->toArray();
 
                     if (empty($jobsFound)) {
-                        return redirect()->route('proses-produksi.show', $job_id)
+                        return redirect()->route('proses-produksi.rangkuman', $job_id)
                             ->with('error', "Tidak ada Job ID yang cocok dengan pencarian '{$sJob}'.");
                     }
 
@@ -241,25 +438,31 @@ class ProsesProduksiController extends Controller
                 $matchedJobs = array_unique($matchedJobs);
                 $validatedJobs = [];
                 $commonDocket = null;
+                $commonProduct = null;
 
                 foreach ($matchedJobs as $mJob) {
                     $checkRecord = ProsesProduksi::where('job', $mJob)->first();
                     if ($checkRecord) {
                         $jobDocket = $checkRecord->designno ?? '-';
+                        $jobProduct = $checkRecord->product ?? '-';
 
-                        if ($commonDocket === null) {
+                        if ($commonDocket === null || $commonProduct === null) {
                             $commonDocket = $jobDocket;
+                            $commonProduct = $jobProduct;
                         } elseif ($jobDocket !== $commonDocket) {
-                            return redirect()->route('proses-produksi.show', $job_id)
+                            return redirect()->route('proses-produksi.rangkuman', $job_id)
                                 ->with('error', "Pencarian multi-job harus memiliki Docket/Design No yang sama. Job '{$mJob}' memiliki Docket '{$jobDocket}' yang berbeda dengan Docket '{$commonDocket}'.");
+                        } elseif ($jobProduct !== $commonProduct) {
+                            return redirect()->route('proses-produksi.rangkuman', $job_id)
+                                ->with('error', "Pencarian multi-job harus memiliki Product No yang sama. Job '{$mJob}' memiliki Product '{$jobProduct}' yang berbeda dengan Docket '{$commonProduct}'.");
                         }
-
                         $validatedJobs[] = $mJob;
                     }
                 }
 
                 $jobsToQuery = $validatedJobs;
                 $docket = $commonDocket;
+                $product = $commonProduct;
             }
         }
 
@@ -289,7 +492,7 @@ class ProsesProduksiController extends Controller
             $detailOrder = [
                 'PRINT', 'SORTIR CETAK', 'WATERBASE', 'HOCK', 'HOTPRINT',
                 'LAMINASI', 'LAMINATING', 'EMBOSS', 'DIECUT', 'CUTTING',
-                'PRETEL', 'LEM', 'LEM SETENGAH JADI', 'SORTIR', 'PACKING',
+                'PRETEL', 'LEM SETENGAH JADI', 'LEM', 'SORTIR LEM', 'SORTIR', 'PACKING', 'SORTPACKING',
             ];
             $caseSql = 'CASE UPPER(proses) ';
             foreach ($detailOrder as $index => $processName) {
@@ -351,29 +554,29 @@ class ProsesProduksiController extends Controller
             }
         };
 
-        // 3. HITUNG ATRIBUT VIRTUAL UNTUK SEMUA REKOR (agar rangkuman & grand total akurat)
+        // HITUNG ATRIBUT VIRTUAL UNTUK SEMUA REKOR (agar rangkuman & grand total akurat)
         foreach ($allDetailProses as $data) {
             $calculateItem($data);
         }
 
-        // Paginate detailProses (9 records per page)
-        $detailProses = $detailQuery->paginate(9)->appends($request->query());
-        foreach ($detailProses as $data) {
-            $calculateItem($data);
-        }
+        // Tidak lagi dipaginate — seluruh data yang sama dipakai untuk detail per-proses,
+        // supaya saat expand di tabel rangkuman, semua aktivitas proses tersebut ikut tampil
+        // (tidak terpotong halaman).
+        $detailProses = $allDetailProses;
 
-        // 4. BUAT TABEL RANGKUMAN (DOCKET-WIDE)
+        // 4. HITUNG DATA PER PROSES (DOCKET-WIDE)
+        // Urutan ini penting: dipakai juga untuk mencari "proses sebelumnya yang ada
+        // datanya" pada perhitungan SELISIH di bawah.
         $masterProses = [
             'PRINT', 'SORTIR CETAK', 'WATERBASE', 'HOCK', 'HOTPRINT',
             'LAMINASI', 'LAMINATING', 'EMBOSS', 'DIECUT', 'CUTTING',
-            'PRETEL', 'LEM', 'SORTIR', 'PACKING',
+            'PRETEL', 'LEM SETENGAH JADI', 'LEM', 'SORTIR LEM', 'SORTIR', 'PACKING',
         ];
 
-        $rangkuman = [];
+        $prosesData = [];
 
         foreach ($masterProses as $prosesName) {
             $jam = 0;
-            // tambah input
             $input = 0;
             $jtdrik = 0;
             $jtpcs = 0;
@@ -398,7 +601,6 @@ class ProsesProduksiController extends Controller
                     $itemOutputdrik = $itemUpspk > 0 ? $itemOutputpcs / $itemUpspk : 0;
 
                     $jam += (float) ($item->totaljam ?? 0);
-                    // tambah input
                     $input += $itemInput;
                     $jtdrik += $itemJtdrik;
                     $jtpcs += $itemJtpcs;
@@ -421,10 +623,7 @@ class ProsesProduksiController extends Controller
                     $itemOutputdrik = $itemUpspk > 0 ? $itemInput / $itemUpspk : 0;
 
                     $jam += (float) ($item->totaljam ?? 0);
-                    // input
                     $input += $itemInput;
-                    $jtdrik += 0;
-                    $jtpcs += 0;
                     $outputdrik += $itemOutputdrik;
                     $outputpcs += $itemOutputpcs;
                     $total_pengerjaan_drik += $itemOutputdrik;
@@ -435,8 +634,7 @@ class ProsesProduksiController extends Controller
                     return strtoupper(trim((string) $item->proses)) === $prosesName;
                 });
                 $jam = $dataPerProses->sum('totaljam');
-                // tambah input
-                $input = $dataPerProses->sum(fn ($item) => (float) str_replace('.', '', (string) ($item->input ?? 0)));
+                $input = $dataPerProses->sum('input');
                 $jtdrik = $dataPerProses->sum('jtdrik');
                 $jtpcs = $dataPerProses->sum('jtpcs');
                 $outputdrik = $dataPerProses->sum('outputdrik');
@@ -445,10 +643,9 @@ class ProsesProduksiController extends Controller
                 $total_pengerjaan_pcs = $dataPerProses->sum('total_pengerjaan_pcs');
             }
 
-            $rangkuman[] = [
+            $prosesData[$prosesName] = [
                 'proses' => $prosesName,
                 'jam' => $jam,
-                // tambah input
                 'input' => $input,
                 'jt_drik' => $jtdrik,
                 'jt_pcs' => $jtpcs,
@@ -458,8 +655,52 @@ class ProsesProduksiController extends Controller
                 'total_pengerjaan_pcs' => $total_pengerjaan_pcs,
                 'selisih_drik' => 0,
                 'selisih_pcs' => 0,
+                'has_selisih' => false,
+                'has_data' => $dataPerProses->isNotEmpty(),
             ];
         }
+
+        // 5. SELISIH — dihitung untuk SEMUA proses (kecuali PACKING), masing-masing
+        // dibandingkan ke proses SEBELUMNYA (mundur di urutan $masterProses) yang
+        // ada datanya. Contoh: SORTIR dibandingkan ke LEM; kalau LEM kosong, ke
+        // PRETEL; kalau kosong juga, ke CUTTING, dst. Lalu LEM sendiri juga
+        // dibandingkan ke PRETEL (atau proses sebelumnya lagi kalau kosong), dan
+        // begitu seterusnya mundur sampai ke proses paling awal (PRINT, yang tidak
+        // punya pembanding sehingga tidak dihitung selisihnya).
+        // Rumus: Total Pengerjaan Drik/Pcs proses ini dikurangi Output Drik/Pcs
+        // proses pembanding.
+        foreach ($masterProses as $idx => $prosesName) {
+            if ($prosesName === 'PACKING') {
+                continue; // packing tidak dihitung selisihnya
+            }
+            if ($idx === 0) {
+                continue; // proses paling awal tidak punya proses sebelumnya untuk dibandingkan
+            }
+            if (empty($prosesData[$prosesName]['has_data'])) {
+                continue; // proses ini sendiri kosong, tidak perlu dihitung
+            }
+
+            $prosesPembanding = null;
+            for ($j = $idx - 1; $j >= 0; $j--) {
+                $namaSebelumnya = $masterProses[$j];
+                if (! empty($prosesData[$namaSebelumnya]['has_data'])) {
+                    $prosesPembanding = $namaSebelumnya;
+                    break;
+                }
+            }
+
+            if ($prosesPembanding !== null) {
+                $prosesData[$prosesName]['selisih_drik'] = $prosesData[$prosesName]['total_pengerjaan_drik'] - $prosesData[$prosesPembanding]['output_drik'];
+                $prosesData[$prosesName]['selisih_pcs'] = $prosesData[$prosesName]['total_pengerjaan_pcs'] - $prosesData[$prosesPembanding]['output_pcs'];
+                $prosesData[$prosesName]['has_selisih'] = true;
+            }
+        }
+
+        // 6. HANYA TAMPILKAN PROSES YANG BENAR-BENAR ADA DATANYA
+        $rangkuman = collect($prosesData)
+            ->filter(fn ($row) => $row['has_data'])
+            ->values()
+            ->all();
 
         $total = [
             'input' => $allDetailProses->sum(fn ($x) => (float) ($x->input ?? 0)),
@@ -469,20 +710,18 @@ class ProsesProduksiController extends Controller
             'outputdrik' => $allDetailProses->sum(fn ($x) => (float) ($x->outputdrik ?? 0)),
         ];
 
-        // 5. KIRIM DATA KE BLADE
-        return view('role.produksi.proses_produksi.show', compact('rangkuman', 'detailProses', 'job_id', 'docket', 'total', 'jobsToQuery'));
+        // 7. KIRIM DATA KE BLADE
+        return view('role.produksi.produksidept.proses.report', compact('rangkuman', 'detailProses', 'job_id', 'docket', 'product', 'total', 'jobsToQuery'));
     }
 
     public function inlineUpdate(Request $request)
     {
-        $allowedFields = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift', 'operator', 'set', 'run', 'finish', 'tanggal'];
-        $stringFields = ['operator', 'set', 'run', 'finish', 'tanggal'];
+        $allowedFields = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift', 'operator', 'set', 'run', 'finish', 'tanggal', 'qty', 'mesin'];
+        $stringFields = ['operator', 'set', 'run', 'finish', 'tanggal', 'mesin'];
 
         $valueRules = 'required';
-        if (in_array($request->field, ['set', 'run', 'finish'], true)) {
+        if (in_array($request->field, $stringFields, true)) {
             $valueRules = 'nullable|string';
-        } elseif (in_array($request->field, $stringFields, true)) {
-            $valueRules = 'required|string';
         } else {
             $valueRules = 'required|numeric';
         }
@@ -680,7 +919,11 @@ class ProsesProduksiController extends Controller
                 'jtpcs' => (float) $record->jtpcs,
                 'upspk' => (float) $record->upspk,
                 'shift' => (float) $record->shift,
+                'qty' => (float) $record->qty,
                 'operator' => $record->operator,
+                'mesin' => $record->mesin,
+                'product' => $record->product,
+                'tanggal' => $record->tanggal ? Carbon::parse($record->tanggal)->format('Y-m-d') : null,
                 'set' => $record->set,
                 'run' => $record->run,
                 'finish' => $record->finish,
@@ -712,163 +955,6 @@ class ProsesProduksiController extends Controller
         return response()->json(null);
     }
 
-    public function store(Request $request)
-    {
-        // Validasi: (SEMUA RULES ANDA DISALIN LENGKAP)
-        $rules = [
-            'proses' => 'required|array|min:1',
-            'proses.*' => 'required|string',
-            'job' => 'nullable|array',
-            'job.*' => 'nullable|string',
-            'product' => 'nullable|array',
-            'product.*' => 'nullable|string',
-            'designno' => 'nullable|array',
-            'designno.*' => 'nullable|string',
-            'po' => 'nullable|array',
-            'po.*' => 'nullable|string',
-            'qty' => 'nullable|array',
-            'qty.*' => 'nullable|string',
-            'pengawas' => 'nullable|array',
-            'pengawas.*' => 'nullable|string',
-            'shiftpengawas' => 'nullable|array',
-            'shiftpengawas.*' => 'nullable|string',
-            'upspk' => 'nullable|array',
-            'upspk.*' => 'nullable|string',
-            'tanggal' => 'nullable|array',
-            'tanggal.*' => 'nullable|string',
-            'mesin' => 'nullable|array',
-            'mesin.*' => 'nullable|string',
-            'vendormat' => 'nullable|array',
-            'vendormat.*' => 'nullable|string',
-            'shift' => 'nullable|array',
-            'shift.*' => 'nullable|string',
-            'palet' => 'nullable|array',
-            'palet.*' => 'nullable|string',
-            'set' => 'nullable|array',
-            'set.*' => 'nullable|string',
-            'operator' => 'nullable|array',
-            'operator.*' => 'nullable|string',
-            'jumlahtim' => 'nullable|array',
-            'jumlahtim.*' => 'nullable|string',
-            'run' => 'nullable|array',
-            'run.*' => 'nullable|string',
-            'finish' => 'nullable|array',
-            'finish.*' => 'nullable|string',
-            'break' => 'nullable|array',
-            'break.*' => 'nullable|string',
-            'totaljam' => 'nullable|array',
-            'totaljam.*' => 'nullable|string',
-            'input' => 'nullable|array',
-            'input.*' => 'nullable|string',
-            'ket' => 'nullable|array',
-            'ket.*' => 'nullable|string',
-            'jtdrik' => 'nullable|array',
-            'jtdrik.*' => 'nullable|string',
-            'target' => 'nullable|array',
-            'target.*' => 'nullable|string',
-            'karantina' => 'nullable|array',
-            'karantina.*' => 'nullable|string',
-            'outputdrik' => 'nullable|array',
-            'outputdrik.*' => 'nullable|string',
-            'type' => 'nullable|array',
-            'type.*' => 'nullable|string',
-            'toleransi' => 'nullable|array',
-            'toleransi.*' => 'nullable|string',
-            'ok' => 'nullable|array',
-            'ok.*' => 'nullable|string',
-            'jtpcs' => 'nullable|array',
-            'jtpcs.*' => 'nullable|string',
-            'warna' => 'nullable|array',
-            'warna.*' => 'nullable|string',
-            'banjir' => 'nullable|array',
-            'banjir.*' => 'nullable|string',
-            'beset' => 'nullable|array',
-            'beset.*' => 'nullable|string',
-            'notok' => 'nullable|array',
-            'notok.*' => 'nullable|string',
-            'powder' => 'nullable|array',
-            'powder.*' => 'nullable|string',
-            'wb' => 'nullable|array',
-            'wb.*' => 'nullable|string',
-            'uvkasar' => 'nullable|array',
-            'uvkasar.*' => 'nullable|string',
-            'uvmbleset' => 'nullable|array',
-            'uvmbleset.*' => 'nullable|string',
-            'tidakuv' => 'nullable|array',
-            'tidakuv.*' => 'nullable|string',
-            'hotprint' => 'nullable|array',
-            'hotprint.*' => 'nullable|string',
-            'laminating' => 'nullable|array',
-            'laminating.*' => 'nullable|string',
-            'laminasikurang' => 'nullable|array',
-            'laminasikurang.*' => 'nullable|string',
-            'laminasi' => 'nullable|array',
-            'laminasi.*' => 'nullable|string',
-            'tidakpresisi' => 'nullable|array',
-            'tidakpresisi.*' => 'nullable|string',
-            'pecah' => 'nullable|array',
-            'pecah.*' => 'nullable|string',
-            'emboss' => 'nullable|array',
-            'emboss.*' => 'nullable|string',
-            'porforasi' => 'nullable|array',
-            'porforasi.*' => 'nullable|string',
-            'sobek' => 'nullable|array',
-            'sobek.*' => 'nullable|string',
-            'lengket' => 'nullable|array',
-            'lengket.*' => 'nullable|string',
-            'll' => 'nullable|array',
-            'll.*' => 'nullable|string',
-            'noteoperator' => 'nullable|array',
-            'noteoperator.*' => 'nullable|string',
-        ];
-
-        // 1. Validasi data
-        try {
-            $validated = $request->validate($rules);
-            $rowsCount = count($validated['proses'] ?? []);
-
-            if ($rowsCount === 0) {
-                return back()->with('error', 'Tidak ada baris untuk disimpan.');
-            }
-
-        } catch (ValidationException $e) {
-            // Jika validasi gagal, kembalikan seperti biasa
-            return back()->withErrors($e->errors())->withInput();
-        }
-
-        try {
-
-            DB::transaction(function () use ($validated, $rowsCount) {
-
-                $dataInsert = [];
-
-                for ($i = 0; $i < $rowsCount; $i++) {
-
-                    $row = [];
-
-                    foreach ($validated as $field => $values) {
-                        $row[$field] = $values[$i] ?? null;
-                    }
-
-                    $row['created_at'] = now();
-                    $row['updated_at'] = now();
-
-                    $dataInsert[] = $row;
-                }
-
-                ProsesProduksi::insert($dataInsert);
-            });
-
-            return back()->with('success', $rowsCount.' data berhasil disimpan.');
-
-        } catch (\Exception $e) {
-
-            Log::error($e->getMessage());
-
-            return back()->with('error', 'Gagal menyimpan data.');
-        }
-    }
-
     public function searchSuggestions(Request $request)
     {
         $keyword = trim((string) $request->input('q', ''));
@@ -878,7 +964,6 @@ class ProsesProduksiController extends Controller
             'job' => 'job',
             'designno' => 'designno',
             'product' => 'product',
-            'operator' => 'operator',
         ];
 
         if (! isset($allowedTypes[$type])) {

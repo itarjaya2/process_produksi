@@ -42,7 +42,7 @@
 
         {{-- Blade: form rows dengan Add Row + semua script --}}
         <div>
-            <form method="POST" action="{{ route('proses-produksi.store') }}">
+            <form method="POST" action="{{ route('spreadsheet.store') }}">
                 @csrf
                 <div id="rows-container">
                     <!-- Row template (clone-able). visible pertama kali -->
@@ -84,16 +84,16 @@
                                             class="border border-gray-300 rounded-md px-2 py-1 w-2/3" required>
                                             <option value="" selected>--Pilih Pengawas--</option>
                                             <option value="">TIDAK ADA</option>
-                                            {{-- @foreach ($karyawanstaff as $staff)
-                      @if ($staff->departement == 'Produksi' && $staff->jabatan == 'PENGAWAS' && $staff->status == 'AKTIF')
-                        <option>{{ $staff->nama }}</option>
-                      @endif
-                    @endforeach --}}
+                                            @foreach ($karyawanstaff as $staff)
+                                                @if ($staff->departement == 'Produksi' && $staff->jabatan == 'PENGAWAS' && $staff->status == 'AKTIF')
+                                                    <option>{{ $staff->nama }}</option>
+                                                @endif
+                                            @endforeach
                                         </select>
                                     </div>
                                     <div class="flex items-center">
                                         <label class="w-1/3 text-gray-700">Shift Pengawas</label>
-                                        <select name="shiftpengawas[]"
+                                        <select name="shift_pengawas[]"
                                             class="border border-gray-300 rounded-md px-2 py-1 w-2/3" required>
                                             <option value="" selected>--Pilih Shift--</option>
                                             <option>1</option>
@@ -106,8 +106,8 @@
                                         <input type="text" list="job" name="job[]" placeholder="250001..."
                                             class="job-input border border-gray-300 rounded-md px-2 py-1 w-2/3">
                                         <datalist id="job">
-                                            @foreach ($jobs as $job)
-                                                <option value="{{ $job->job }}">
+                                            @foreach ($job as $idjob)
+                                                <option>{{ $idjob->id }}</option>
                                             @endforeach
                                         </datalist>
                                     </div>
@@ -385,7 +385,21 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Data operator dari Blade (sama seperti di scriptmu)
-
+            const allOptions = [
+                @foreach ($karyawan as $data)
+                    {
+                        value: "{{ $data->nama }}",
+                        text: "{{ $data->nama }}",
+                        departement: "{{ strtoupper($data->departement) }}",
+                        status: "{{ strtoupper($data->status) }}",
+                        bagian: "{{ strtoupper($data->bagian) }}",
+                        kelamin: "{{ strtoupper($data->kelamin) }}"
+                    }
+                    @if (!$loop->last)
+                        ,
+                    @endif
+                @endforeach
+            ];
 
             // JT types (sama persis)
             const allJtTypes = [
@@ -393,9 +407,6 @@
                 'Tidak UV', 'Hotprint', 'Laminating', 'Laminasi Kurang', 'Laminasi',
                 'Tidak Presisi', 'Pecah', 'Emboss', 'Porforasi', 'Sobek', 'Lengket', 'LL'
             ];
-
-            // Operator lookup placeholder: jika tidak ada data karyawan, kosong saja supaya skrip tidak error.
-            const allOptions = [];
 
             // Helper format / unformat (sama persis)
             function formatNumber(num) {
@@ -888,7 +899,7 @@
                 jobInput?.addEventListener('change', function() {
                     const jobId = this.value.trim();
                     if (jobId === '') return;
-                    fetch(`/get-job-data/${jobId}`)
+                    fetch(`/get-job-spreadsheet/${jobId}`)
                         .then(res => res.json())
                         .then(data => {
                             if (data) {

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\produksi;
+namespace App\Http\Controllers\Produksi\DeptProduksi;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
@@ -80,7 +80,7 @@ class ActivityLogController extends Controller
         // Ambil daftar user yang pernah melakukan aktivitas log saja untuk dropdown
         $listUsers = User::whereHas('activityLogs')->orderBy('name')->get();
 
-        return view('role.produksi.activitylog.index', compact('logs', 'listProses', 'listUsers'));
+        return view('role.produksi.produksidept.activitylog.index', compact('logs', 'listProses', 'listUsers'));
     }
 
     /**
@@ -95,7 +95,7 @@ class ActivityLogController extends Controller
             ->map(function ($log) {
                 return [
                     'waktu' => $log->created_at
-                        ? Carbon::parse($log->created_at)->format('d/m/y H:i:s')
+                        ? strtoupper(Carbon::parse($log->created_at)->format('d M y H:i:s'))
                         : '-',
                     'user' => optional($log->user)->name ?? 'System',
                     'field' => $log->field_name,

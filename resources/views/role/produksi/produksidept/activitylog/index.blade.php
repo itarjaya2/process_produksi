@@ -28,7 +28,60 @@
             'total_pengerjaan_pcs' => ['label' => 'Peng. PCS', 'code' => 'total_pengerjaan_pcs'],
         ];
 
-        $badgePalette = ['primary', 'success', 'warning', 'info', 'danger', 'dark'];
+        $processOrder = [
+            'PRINT',
+            'SORTIR CETAK',
+            'WATERBASE',
+            'HOCK',
+            'HOTPRINT',
+            'LAMINASI',
+            'LAMINATING',
+            'EMBOSS',
+            'DIECUT',
+            'CUTTING',
+            'PRETEL',
+            'LEM SETENGAH JADI',
+            'LEM',
+            'SORTIR LEM',
+            'SORTIR',
+            'PACKING',
+            'SORTPACKING',
+        ];
+
+        $softPalette = [
+            ['bg' => '#EAEAFE', 'text' => '#5850EC'], // 0  PRINT            - indigo
+            ['bg' => '#E1F2FB', 'text' => '#0B76B7'], // 1  SORTIR CETAK     - sky
+            ['bg' => '#E1F6ED', 'text' => '#0C8457'], // 2  WATERBASE        - emerald
+            ['bg' => '#FCF1DC', 'text' => '#B4740E'], // 3  HOCK             - amber
+            ['bg' => '#FBE7E7', 'text' => '#C1454B'], // 4  HOTPRINT         - soft red
+            ['bg' => '#F1E7FC', 'text' => '#7C4DCC'], // 5  LAMINASI         - violet
+            ['bg' => '#E1F3F5', 'text' => '#1080A0'], // 6  LAMINATING       - cyan
+            ['bg' => '#FBE6F0', 'text' => '#BD3E7B'], // 7  EMBOSS           - pink
+            ['bg' => '#EEF3DE', 'text' => '#647F1E'], // 8  DIECUT           - olive
+            ['bg' => '#E9EBEF', 'text' => '#5A6577'], // 9  CUTTING          - slate
+            ['bg' => '#FDEAE0', 'text' => '#C2600C'], // 10 PRETEL           - orange
+            ['bg' => '#F5E6F5', 'text' => '#9C3F9C'], // 11 LEM SETENGAH JADI- plum
+            ['bg' => '#E0F5F1', 'text' => '#0F8A72'], // 12 LEM              - teal
+            ['bg' => '#F8EBD9', 'text' => '#A05A10'], // 13 SORTIR LEM       - bronze
+            ['bg' => '#F3E9DE', 'text' => '#8B5E34'], // 14 SORTIR           - brown
+            ['bg' => '#E3EAFB', 'text' => '#2D5FCC'], // 15 PACKING          - blue
+            ['bg' => '#F1F5DA', 'text' => '#6B8E1E'], // 16 SORTPACKING      - chartreuse
+        ];
+
+        if (!function_exists('_prosesColor')) {
+            function _prosesColor($namaProses, $softPalette, $processOrder)
+            {
+                $teks = strtoupper(trim((string) $namaProses)) ?: 'DEFAULT';
+                $idx = array_search($teks, $processOrder, true);
+
+                if ($idx === false) {
+                    $fallbackSlots = max(1, count($softPalette) - count($processOrder));
+                    $idx = count($processOrder) + (abs(crc32($teks)) % $fallbackSlots);
+                }
+
+                return $softPalette[$idx % count($softPalette)];
+            }
+        }
 
         // Summary stats dihitung dari collection halaman saat ini
         $collection = $logs->getCollection();
@@ -385,13 +438,13 @@
         {{-- PAGE HEADER  --}}
         <div class="d-flex align-items-start justify-content-between mb-4 gap-3 flex-wrap">
             <div>
-                <h4 class="fw-bold mb-1" style="letter-spacing:-.02em">Activity Log Prodution</h4>
+                <h4 class="fw-bold mb-1" style="letter-spacing:-.02em">Activity Log Production</h4>
                 <p class="text-muted mb-0 small">
                     Riwayat lengkap setiap perubahan data — siapa mengubah apa, kapan, serta nilai sebelum &amp; sesudahnya.
                 </p>
             </div>
             <div class="d-flex gap-2 flex-shrink-0">
-                <a href="{{ route('proses-produksi.index') }}"
+                <a href="{{ route('proses-produksi.indexdata') }}"
                     class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
                     <i class="bx bx-arrow-back fs-5"></i>
                     <span>Kembali</span>
@@ -700,7 +753,7 @@
                                         'code' => $rawField,
                                     ];
                                     $teksBadge = $proses ?? 'default';
-                                    $bColor = $badgePalette[abs(crc32($teksBadge)) % count($badgePalette)];
+                                    $c = _prosesColor($teksBadge, $softPalette, $processOrder);
                                     $oldVal = $log->old_value;
                                     $newVal = $log->new_value;
                                     $isNumericField = in_array($rawField, [
@@ -723,7 +776,8 @@
                                     <td class="text-nowrap">
                                         @if ($log->created_at)
                                             <div class="ts-d">
-                                                {{ \Carbon\Carbon::parse($log->created_at)->format('d/m/y') }}</div>
+                                                {{ strtoupper(\Carbon\Carbon::parse($log->created_at)->format('d M y')) }}
+                                            </div>
                                             <div class="ts-t">
                                                 {{ \Carbon\Carbon::parse($log->created_at)->format('H:i:s') }}</div>
                                         @else
@@ -749,8 +803,8 @@
                                     {{-- Proses Produksi --}}
                                     <td>
                                         @if ($proses)
-                                            <span class="badge bg-label-{{ $bColor }} fw-semibold"
-                                                style="font-size:.74rem; border-radius:8px; padding:.22rem .58rem">
+                                            <span class="badge fw-semibold"
+                                                style="font-size:.74rem; border-radius:8px; padding:.22rem .58rem; background-color: {{ $c['bg'] }}; color: {{ $c['text'] }};">
                                                 {{ $proses }}
                                             </span>
                                         @else
@@ -771,7 +825,7 @@
                                             <span class="diff-chip text-danger"
                                                 style="white-space: nowrap; max-width: none;">
                                                 @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
-                                                    {{ \Carbon\Carbon::parse($oldVal)->format('d/m/y H:i') }}
+                                                    {{ $rawField === 'tanggal' ? strtoupper(\Carbon\Carbon::parse($oldVal)->format('d M y')) : strtoupper(\Carbon\Carbon::parse($oldVal)->format('d M y')) . ' ' . \Carbon\Carbon::parse($oldVal)->format('H:i') }}
                                                 @else
                                                     {{ is_numeric($oldVal) && $rawField !== 'job'
                                                         ? (floor($oldVal) == $oldVal
@@ -793,7 +847,7 @@
                                             <span class="diff-chip text-success"
                                                 style="white-space: nowrap; max-width: none;">
                                                 @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
-                                                    {{ \Carbon\Carbon::parse($newVal)->format('d/m/y H:i') }}
+                                                    {{ $rawField === 'tanggal' ? strtoupper(\Carbon\Carbon::parse($newVal)->format('d M y')) : strtoupper(\Carbon\Carbon::parse($newVal)->format('d M y')) . ' ' . \Carbon\Carbon::parse($newVal)->format('H:i') }}
                                                 @else
                                                     {{ is_numeric($newVal) && $rawField !== 'job' ? (floor($newVal) == $newVal ? number_format((float) $newVal, 0, ',', '.') : number_format((float) $newVal, 2, ',', '.')) : $newVal }}
                                                 @endif
@@ -850,7 +904,7 @@
         </div>{{-- /al-table-card --}}
 
     </div>{{-- /container --}}
-
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
         document.getElementById('btnRefresh')?.addEventListener('click', function() {
             this.classList.add('spin');
