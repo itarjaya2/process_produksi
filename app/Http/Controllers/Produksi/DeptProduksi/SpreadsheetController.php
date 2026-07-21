@@ -200,8 +200,9 @@ class SpreadsheetController extends Controller
             'lem',
             'lem setengah jadi',
             'sortir lem',
-            'sortir cetak',
         ])) {
+            // jtpcs
+            $record->jtpcs = $jtpcs;
             // jtdrik = jtpcs/upspk
             $record->jtdrik = $upspk > 0 ? $record->jtpcs / $upspk : 0;
             // outputpcs = input - jt pcs
@@ -834,26 +835,24 @@ class SpreadsheetController extends Controller
             }
         }
 
-        if ($field === 'jtdrik' && $prosesName === 'lem') {
+        $isLemVariant = in_array(strtolower($prosesName), ['lem', 'lem setengah jadi', 'sortir lem'], true);
+
+        if ($field === 'jtdrik' && $isLemVariant) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT Drik untuk proses LEM tidak dapat diinput secara inline.',
+                'message' => 'Kolom JT Drik untuk varian proses LEM tidak dapat diinput secara inline.',
             ], 422);
         }
 
-        if ($field === 'jtpcs' && ! in_array($prosesName, ['lem', 'sortpacking'], true)) {
+        if ($field === 'jtpcs' && ! $isLemVariant && $prosesName !== 'sortpacking') {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT PCS hanya dapat diubah untuk proses LEM dan SORTPACKING.',
+                'message' => 'Kolom JT PCS hanya dapat diubah untuk varian proses LEM dan SORTPACKING.',
             ], 422);
-        }
-
-        if ($prosesName === 'lem' && $field === 'jtpcs') {
-            $saveField = 'input';
         }
 
         // Validation: JT Drik cannot be greater than Input
-        if ($prosesName !== 'lem' && ! in_array($field, $stringFields, true)) {
+        if (! $isLemVariant && ! in_array($field, $stringFields, true)) {
             $numericValue = (float) $value;
             if ($field === 'jtdrik' && $numericValue > $record->input) {
                 return response()->json([

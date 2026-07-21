@@ -493,14 +493,14 @@
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtdrik" data-value="{{ $data->jtdrik ?? 0 }}"
-                                                    data-editable="{{ strtolower($data->proses ?? '') === 'lem' ? '0' : '1' }}">
+                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem']) ? '0' : '1' }}">
                                                     {{ $data->jtdrik ? number_format($data->jtdrik, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtpcs" data-value="{{ $data->jtpcs ?? 0 }}"
-                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'sortpacking']) ? '1' : '0' }}">
+                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking']) ? '1' : '0' }}">
                                                     {{ $data->jtpcs ? number_format($data->jtpcs, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
@@ -1930,10 +1930,9 @@
                         if (r.editable) {
                             let isEditableVal = '1';
                             if (r.field === 'jtdrik') {
-                                isEditableVal = d.proses.toLowerCase() === 'lem' ? '0' : '1';
+                                isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem'].includes(d.proses.toLowerCase()) ? '0' : '1';
                             } else if (r.field === 'jtpcs') {
-                                isEditableVal = ['lem', 'sortpacking'].includes(d.proses.toLowerCase()) ? '1' :
-                                    '0';
+                                isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking'].includes(d.proses.toLowerCase()) ? '1' : '0';
                             }
 
                             const isNumeric = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift'].includes(r.field);
