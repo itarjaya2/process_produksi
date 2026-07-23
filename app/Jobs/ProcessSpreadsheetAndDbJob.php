@@ -2,18 +2,21 @@
 
 namespace App\Jobs;
 
+use App\Models\ProsesProduksi;
+use Carbon\Carbon;
+use Google\Client;
+use Google\Service\Sheets;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Foundation\Bus\Dispatchable; // <-- Sesuaikan path ke model Anda
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use App\Models\ProsesProduksi; // <-- Sesuaikan path ke model Anda
-use Carbon\Carbon;
 
 class ProcessSpreadsheetAndDbJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
     protected $validated;
 
     /**
@@ -33,7 +36,8 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
         $validated = $this->validated;
         $rowsCount = count($validated['proses'] ?? 0);
         if ($rowsCount === 0) {
-            Log::info("ProcessSpreadsheetAndDbJob: Tidak ada data untuk diproses.");
+            Log::info('ProcessSpreadsheetAndDbJob: Tidak ada data untuk diproses.');
+
             return;
         }
 
@@ -101,7 +105,7 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
             'LEM' => [
                 'C' => 'job', 'H' => 'upspk', 'O' => 'tanggal', 'P' => 'shift',
                 'Q' => 'operator', 'R' => 'mesin', 'S' => 'set', 'T' => 'run',
-                    'U' => 'finish', 'V' => 'break', 'W' => 'totaljam', 'X' => 'input',
+                'U' => 'finish', 'V' => 'break', 'W' => 'totaljam', 'X' => 'input',
                 'Y' => 'ket', 'Z' => 'jtpcs', 'AD' => 'target',
             ],
             'LEM SETENGAH JADI' => [
@@ -122,23 +126,61 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
             ],
         ];
 
-
         try {
             // Inisialisasi Google Service
-            $client = $this->getClient(); // Panggil helper di bawah
-            $service = new \Google\Service\Sheets($client);
-            $spreadsheetId = env('GOOGLE_SHEET_ID');
+            // $client = $this->getClient(); // Panggil helper di bawah
+            // $service = new Sheets($client);
+            // $spreadsheetId = env('GOOGLE_SHEET_ID');
 
             // --- OPTIMASI 1: BATCH DATABASE INSERT ---
             $dbInsertData = [];
             $dataBySheet = []; // Untuk mengelompokkan data per sheet
             $now = Carbon::now();
 
+            // 1. BUAT ARRAY PENAMPUNG KUNCI UNTUK CEK DUPLIKAT DI DALAM BATCH
+            // =================================================================
+            $processedKeys = [];
+
             for ($i = 0; $i < $rowsCount; $i++) {
+                // Ambil nilai job, operator, dan shift untuk baris ini
+                $currentJob = trim($validated['job'][$i] ?? '');
+                $currentOperator = trim($validated['operator'][$i] ?? '');
+                $currentShift = trim($validated['shift'][$i] ?? '');
+
+                // 2. LOGIKA FILTER DUPLIKAT (JOB + OPERATOR + SHIFT)
+                // =================================================================
+                // Jika job terisi, kita lakukan validasi duplikat
+                if (! empty($currentJob)) {
+                    // Buat "Kunci Unik" gabungan dari 3 kolom tersebut
+                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentShift;
+
+                    // A. Cek apakah kunci ini sudah ada DI DALAM FORM SUBMIT yang sama?
+                    if (in_array($uniqueKey, $processedKeys)) {
+                        Log::warning("Duplikat input form terdeteksi (Baris dilewati): Job {$currentJob}, Op {$currentOperator}, Shift {$currentShift}");
+
+                        continue; // Lewati baris ini, langsung lanjut ke perulangan $i berikutnya
+                    }
+
+                    // B. Cek apakah kombinasi ini SUDAH ADA DI DATABASE MySQL?
+                    $existsInDb = ProsesProduksi::where('job', $currentJob)
+                        ->where('operator', $currentOperator)
+                        ->where('shift', $currentShift)
+                        ->exists();
+
+                    if ($existsInDb) {
+                        Log::warning("Data sudah ada di database (Baris dilewati): Job {$currentJob}, Op {$currentOperator}, Shift {$currentShift}");
+
+                        continue; // Lewati baris ini agar tidak masuk DB maupun Google Sheets
+                    }
+
+                    // Jika lolos kedua verif di atas, masukkan kunci ini ke daftar "sudah diproses"
+                    $processedKeys[] = $uniqueKey;
+                }
+
                 // Build row data (LENGKAP SEMUA FIELD)
                 $rowData = [
                     'proses' => $validated['proses'][$i] ?? '',
-                    'job' => $validated['job'][$i] ?? '',
+                    'job' => $currentJob, // job
                     'product' => $validated['product'][$i] ?? '',
                     'designno' => $validated['designno'][$i] ?? '',
                     'po' => $validated['po'][$i] ?? '',
@@ -149,10 +191,10 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
                     'tanggal' => $validated['tanggal'][$i] ?? '',
                     'mesin' => $validated['mesin'][$i] ?? '',
                     'vendormat' => $validated['vendormat'][$i] ?? '',
-                    'shift' => $validated['shift'][$i] ?? '',
+                    'shift' => $currentShift, // shift
                     'palet' => $validated['palet'][$i] ?? '',
                     'set' => $validated['set'][$i] ?? '',
-                    'operator' => $validated['operator'][$i] ?? '',
+                    'operator' => $currentOperator, // operator
                     'jumlahtim' => $validated['jumlahtim'][$i] ?? '',
                     'run' => $validated['run'][$i] ?? '',
                     'finish' => $validated['finish'][$i] ?? '',
@@ -203,75 +245,84 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
             }
 
             // Jalankan 1x DB Insert untuk SEMUA baris
-            if (!empty($dbInsertData)) {
+            if (! empty($dbInsertData)) {
                 ProsesProduksi::insert($dbInsertData); // Jauh lebih cepat!
             }
+            // spreadsheet off sementara (buka)
 
-            // --- OPTIMASI 2: BATCH GOOGLE SHEETS UPDATE ---
-            
-            // Helper $getNextRowForSheet (milik Anda)
-            $sheetRowCounters = [];
-            $getNextRowForSheet = function($sheetName) use ($service, $spreadsheetId, &$sheetRowCounters) {
-                if (isset($sheetRowCounters[$sheetName])) return $sheetRowCounters[$sheetName];
-                $getRange = "{$sheetName}!C:C"; // Cek kolom C untuk jumlah baris
-                try {
-                    $response = $service->spreadsheets_values->get($spreadsheetId, $getRange);
-                    $nextRow = count($response->getValues() ?? []) + 1;
-                } catch (\Exception $e) { $nextRow = 2; } // Mulai dari baris 2 jika error
-                $sheetRowCounters[$sheetName] = $nextRow;
-                return $nextRow;
-            };
+            // // --- OPTIMASI 2: BATCH GOOGLE SHEETS UPDATE ---
 
-            // Array untuk menampung SEMUA update
-            $batchValueRanges = []; 
+            // // Helper $getNextRowForSheet (milik Anda)
+            // $sheetRowCounters = [];
+            // $getNextRowForSheet = function ($sheetName) use ($service, $spreadsheetId, &$sheetRowCounters) {
+            //     if (isset($sheetRowCounters[$sheetName])) {
+            //         return $sheetRowCounters[$sheetName];
+            //     }
+            //     $getRange = "{$sheetName}!C:C"; // Cek kolom C untuk jumlah baris
+            //     try {
+            //         $response = $service->spreadsheets_values->get($spreadsheetId, $getRange);
+            //         $nextRow = count($response->getValues() ?? []) + 1;
+            //     } catch (\Exception $e) {
+            //         $nextRow = 2;
+            //     } // Mulai dari baris 2 jika error
+            //     $sheetRowCounters[$sheetName] = $nextRow;
 
-            foreach ($dataBySheet as $sheetName => $rows) {
-                // 1. Dapatkan baris awal untuk sheet ini (1 API Call per TIPE sheet)
-                $nextRow = $getNextRowForSheet($sheetName);
+            //     return $nextRow;
+            // };
 
-                foreach ($rows as $rowData) {
-                    // 2. Bangun value range untuk tiap sel di baris ini
-                    foreach ($mapping[$sheetName] as $col => $field) {
-                        $cellRange = "{$sheetName}!{$col}{$nextRow}";
-                        $value = $rowData[$field] ?? '';
+            // // Array untuk menampung SEMUA update
+            // $batchValueRanges = [];
 
-                        $valueRange = new \Google_Service_Sheets_ValueRange();
-                        $valueRange->setRange($cellRange);
-                        $valueRange->setValues([[$value]]);
+            // foreach ($dataBySheet as $sheetName => $rows) {
+            //     // 1. Dapatkan baris awal untuk sheet ini (1 API Call per TIPE sheet)
+            //     $nextRow = $getNextRowForSheet($sheetName);
 
-                        $batchValueRanges[] = $valueRange; // Kumpulkan semua
-                    }
-                    $nextRow++; // Pindah ke baris selanjutnya untuk sheet ini
-                }
-                // Simpan baris terakhir untuk sheet ini (ini tidak perlu, tapi logikanya tetap)
-                // $sheetRowCounters[$sheetName] = $nextRow; 
-            }
+            //     foreach ($rows as $rowData) {
+            //         // 2. Bangun value range untuk tiap sel di baris ini
+            //         foreach ($mapping[$sheetName] as $col => $field) {
+            //             $cellRange = "{$sheetName}!{$col}{$nextRow}";
+            //             $value = $rowData[$field] ?? '';
 
-            // 3. Jalankan 1x API CALL untuk SEMUA sel
-            if (!empty($batchValueRanges)) {
-                $batchUpdateRequest = new \Google_Service_Sheets_BatchUpdateValuesRequest();
-                $batchUpdateRequest->setValueInputOption('USER_ENTERED');
-                $batchUpdateRequest->setData($batchValueRanges);
+            //             $valueRange = new \Google_Service_Sheets_ValueRange;
+            //             $valueRange->setRange($cellRange);
+            //             $valueRange->setValues([[$value]]);
 
-                $service->spreadsheets_values->batchUpdate($spreadsheetId, $batchUpdateRequest);
-            }
+            //             $batchValueRanges[] = $valueRange; // Kumpulkan semua
+            //         }
+            //         $nextRow++; // Pindah ke baris selanjutnya untuk sheet ini
+            //     }
+            //     // Simpan baris terakhir untuk sheet ini (ini tidak perlu, tapi logikanya tetap)
+            //     // $sheetRowCounters[$sheetName] = $nextRow;
+            // }
 
-            Log::info("ProcessSpreadsheetAndDbJob sukses memproses " . $rowsCount . " baris.");
+            // // 3. Jalankan 1x API CALL untuk SEMUA sel
+            // if (! empty($batchValueRanges)) {
+            //     $batchUpdateRequest = new \Google_Service_Sheets_BatchUpdateValuesRequest;
+            //     $batchUpdateRequest->setValueInputOption('USER_ENTERED');
+            //     $batchUpdateRequest->setData($batchValueRanges);
+
+            //     $service->spreadsheets_values->batchUpdate($spreadsheetId, $batchUpdateRequest);
+            // }
+
+            // off spreadsheet (tutup sementara)
+            Log::info('ProcessSpreadsheetAndDbJob sukses memproses '.$rowsCount.' baris.');
 
         } catch (\Exception $e) {
             // Jika job gagal, catat di log
-            Log::error("ProcessSpreadsheetAndDbJob GAGAL: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('ProcessSpreadsheetAndDbJob GAGAL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
             // Lempar lagi agar job di-retry (jika Anda mau)
             throw $e;
         }
     }
+
     private function getClient()
     {
-        $client = new \Google\Client();
+        $client = new Client;
         $client->setApplicationName('Laravel Google Sheets');
-        $client->setScopes([\Google\Service\Sheets::SPREADSHEETS]);
+        $client->setScopes([Sheets::SPREADSHEETS]);
         $client->setAuthConfig(storage_path('app/laravelspreadsheet-474306-094813654d37.json'));
         $client->setAccessType('offline');
+
         return $client;
     }
 }

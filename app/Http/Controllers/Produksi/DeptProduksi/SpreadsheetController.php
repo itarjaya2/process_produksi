@@ -166,12 +166,57 @@ class SpreadsheetController extends Controller
                 return back()->with('error', 'Tidak ada baris untuk disimpan.');
             }
 
+            // =================================================================
+            // --- TAMBAHAN LOGIKA CEK DUPLIKAT DI SINI ---
+            // =================================================================
+            $duplikatList = [];
+            $processedKeys = [];
+
+            for ($i = 0; $i < $rowsCount; $i++) {
+                $currentJob = trim($validated['job'][$i] ?? '');
+                $currentOperator = trim($validated['operator'][$i] ?? '');
+                $currentShift = trim($validated['shift'][$i] ?? '');
+
+                if (! empty($currentJob)) {
+                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentShift;
+
+                    // A. Cek ketik ganda di dalam form yang sedang di-submit
+                    if (in_array($uniqueKey, $processedKeys)) {
+                        $duplikatList[] = "Job <b>{$currentJob}</b> (Operator: {$currentOperator}, Shift: {$currentShift}) - <i>Ketik ganda di form</i>";
+
+                        continue;
+                    }
+
+                    // B. Cek apakah sudah ada di database MySQL?
+                    // (Pastikan Model ProsesProduksi dipanggil, bisa pakai \App\Models\ProsesProduksi)
+                    $existsInDb = ProsesProduksi::where('job', $currentJob)
+                        ->where('operator', $currentOperator)
+                        ->where('shift', $currentShift)
+                        ->exists();
+
+                    if ($existsInDb) {
+                        $duplikatList[] = "Job <b>{$currentJob}</b> (Operator: {$currentOperator}, Shift: {$currentShift}) - <i>Sudah ada di database</i>";
+
+                        continue;
+                    }
+
+                    $processedKeys[] = $uniqueKey;
+                }
+            }
+
+            // JIKA KETEMU DUPLIKAT: Tolak saat itu juga & tampilkan pesan ke layar!
+            if (! empty($duplikatList)) {
+                return back()->withInput()
+                    ->with('error_duplikat', '<b>Data gagal disimpan!</b> Terdapat data pengerjaan yang sudah pernah diinput:<br>• '.implode('<br>• ', $duplikatList));
+            }
+            // =================================================================
+
         } catch (ValidationException $e) {
             // Jika validasi gagal, kembalikan seperti biasa
             return back()->withErrors($e->errors())->withInput();
         }
 
-        // 2. Kirim data ke Job untuk diproses di background
+        // 2. Kirim data ke Job untuk diproses di background (Jika aman 100% dari duplikat)
         try {
             // Kita hanya perlu melempar data yang sudah divalidasi
             ProcessSpreadsheetAndDbJob::dispatch($validated);
@@ -205,7 +250,6 @@ class SpreadsheetController extends Controller
             'lem',
             'lem setengah jadi',
             'sortir lem',
-            'sortir cetak',
         ])) {
             // jtdrik = jtpcs/upspk
             $record->jtdrik = $upspk > 0 ? $record->jtpcs / $upspk : 0;
@@ -255,6 +299,7 @@ class SpreadsheetController extends Controller
         $filterTanggal = $request->get('tanggal');
         $filterDocket = $request->get('designno');
         $filterProduct = $request->get('product');
+        $filterShift = $request->get('shift');
 
         $query = ProsesProduksi::query();
 
@@ -311,10 +356,14 @@ class SpreadsheetController extends Controller
         }
         if (! empty($filterProduct)) {
             $productsList = preg_split('/[,;|]+/', trim($filterProduct));
-            $productsList = array_filter(array_map('trim', $productsList));
+            $productsList = array_map('trim', $productsList);
+            $productsList = array_filter($productsList);
             if (! empty($productsList)) {
                 $query->whereIn('product', $productsList);
             }
+        }
+        if ($filterShift !== null && $filterShift !== '') {
+            $query->where('shift', $filterShift);
         }
         // 2.Logika filter rentang tanggal
         if (! empty($startDate) && ! empty($endDate)) {
@@ -388,6 +437,13 @@ class SpreadsheetController extends Controller
             ->orderBy('mesin')
             ->pluck('mesin');
 
+        $daftarShift = ProsesProduksi::select('shift')
+            ->whereNotNull('shift')
+            ->where('shift', '!=', '')
+            ->distinct()
+            ->orderBy('shift')
+            ->pluck('shift');
+
         // Ambil data
         $data = $query->get();
 
@@ -400,7 +456,7 @@ class SpreadsheetController extends Controller
             'outputdrik' => $prosesProduksi->sum(fn ($x) => (float) ($x->outputdrik ?? 0)),
         ];
 
-        return view('role.produksi.produksidept.proses.index', compact('prosesProduksi', 'daftarProses', 'daftarMesin', 'total'));
+        return view('role.produksi.produksidept.proses.index', compact('prosesProduksi', 'daftarProses', 'daftarMesin', 'daftarShift', 'total'));
     }
 
     // report proses
@@ -727,6 +783,8 @@ class SpreadsheetController extends Controller
         $valueRules = 'required';
         if (in_array($request->field, $stringFields, true)) {
             $valueRules = 'nullable|string';
+        } elseif ($request->field === 'shift') {
+            $valueRules = 'nullable|numeric';
         } else {
             $valueRules = 'required|numeric';
         }
@@ -839,38 +897,49 @@ class SpreadsheetController extends Controller
             }
         }
 
-        if ($field === 'jtdrik' && $prosesName === 'lem') {
+        if ($field === 'jtdrik' && in_array($prosesName, ['lem', 'lem setengah jadi', 'sortir lem'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT Drik untuk proses LEM tidak dapat diinput secara inline.',
+                'message' => 'Kolom JT Drik untuk proses '.strtoupper($prosesName).' tidak dapat diinput secara inline.',
             ], 422);
         }
 
-        if ($field === 'jtpcs' && ! in_array($prosesName, ['lem', 'sortpacking'], true)) {
+        if ($field === 'jtpcs' && ! in_array($prosesName, ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT PCS hanya dapat diubah untuk proses LEM dan SORTPACKING.',
+                'message' => 'Kolom JT PCS hanya dapat diubah untuk proses LEM, LEM SETENGAH JADI, SORTIR LEM, dan SORTPACKING.',
             ], 422);
         }
 
-        if ($prosesName === 'lem' && $field === 'jtpcs') {
-            $saveField = 'input';
-        }
-
-        // Validation: JT Drik cannot be greater than Input
-        if ($prosesName !== 'lem' && ! in_array($field, $stringFields, true)) {
-            $numericValue = (float) $value;
-            if ($field === 'jtdrik' && $numericValue > $record->input) {
+        // Validation: JT Drik/PCS cannot be greater than Input
+        if (in_array($prosesName, ['lem', 'lem setengah jadi', 'sortir lem'], true)) {
+            if ($field === 'jtpcs' && (float) $value > $record->input) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Kolom JT Drik tidak boleh lebih besar dari Input.',
+                    'message' => 'Kolom JT PCS tidak boleh lebih besar dari Input.',
                 ], 422);
             }
-            if ($field === 'input' && $record->jtdrik > $numericValue) {
+            if ($field === 'input' && $record->jtpcs > (float) $value) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Input tidak boleh lebih kecil dari JT Drik.',
+                    'message' => 'Input tidak boleh lebih kecil dari JT PCS.',
                 ], 422);
+            }
+        } else {
+            if (! in_array($field, $stringFields, true)) {
+                $numericValue = (float) $value;
+                if ($field === 'jtdrik' && $numericValue > $record->input) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Kolom JT Drik tidak boleh lebih besar dari Input.',
+                    ], 422);
+                }
+                if ($field === 'input' && $record->jtdrik > $numericValue) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Input tidak boleh lebih kecil dari JT Drik.',
+                    ], 422);
+                }
             }
         }
 
@@ -880,7 +949,7 @@ class SpreadsheetController extends Controller
         // 2. Siapkan nilai baru yang sudah diformat sesuai tipe datanya
         $formattedNewValue = in_array($saveField, $stringFields, true)
             ? (empty($value) || $value === '-' ? null : $value)
-            : (float) $value;
+            : (($saveField === 'shift' && (empty($value) || $value === '-')) ? null : (float) $value);
 
         DB::transaction(function () use ($record, $saveField, $formattedNewValue, $oldValue) {
             // Update data utama
@@ -923,7 +992,7 @@ class SpreadsheetController extends Controller
                 'jtdrik' => (float) $record->jtdrik,
                 'jtpcs' => (float) $record->jtpcs,
                 'upspk' => (float) $record->upspk,
-                'shift' => (float) $record->shift,
+                'shift' => $record->shift !== null ? (float) $record->shift : null,
                 'qty' => (float) $record->qty,
                 'operator' => $record->operator,
                 'mesin' => $record->mesin,
@@ -1019,6 +1088,7 @@ class SpreadsheetController extends Controller
         $filterTanggal = $request->get('tanggal');
         $filterDocket = $request->get('designno');
         $filterProduct = $request->get('product');
+        $filterShift = $request->get('shift');
 
         if (! empty($filterId)) {
             $query->where('id', $filterId);
@@ -1075,6 +1145,9 @@ class SpreadsheetController extends Controller
             if (! empty($productsList)) {
                 $query->whereIn('product', $productsList);
             }
+        }
+        if ($filterShift !== null && $filterShift !== '') {
+            $query->where('shift', $filterShift);
         }
         if (! empty($startDate) && ! empty($endDate)) {
             $query->whereBetween('tanggal', [$startDate, $endDate]);
@@ -1137,7 +1210,7 @@ class SpreadsheetController extends Controller
         $firstByTanggal = fn ($collection) => $collection->sortBy('tanggal')->first();
         $breakLabel = fn ($item) => $item ? ((strtoupper((string) $item->break) === 'TRUE' || $item->break == 1) ? 'YA' : 'TIDAK') : '-';
         $tglFmt = fn ($item) => $item && $item->tanggal ? Carbon::parse($item->tanggal)->format('d-m-Y') : '-';
-        $jamFmt = fn ($val) => $val ? Carbon::parse($val)->format('H:i') : '-';
+        $jamFmt = fn ($val) => $val ? Carbon::parse($val)->timezone('Asia/Jakarta')->format('H:i') : '-';
 
         $row = [
             'JOB' => $jobId,

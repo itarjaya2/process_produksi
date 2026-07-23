@@ -80,6 +80,7 @@
                             request()->filled('operator') ||
                             request()->filled('proses') ||
                             request()->filled('mesin') ||
+                            request()->filled('shift') ||
                             request()->filled('start_date') ||
                             request()->filled('end_date'))
                         <span class="badge ppx-badge-count">Aktif</span>
@@ -174,6 +175,20 @@
                                 </select>
                             </div>
 
+                            {{-- shift --}}
+                            <div class="col">
+                                <label class="ppx-field-label"><i class="bx bx-time"></i>Shift</label>
+                                <select name="shift" class="form-select ppx-input">
+                                    <option value="">Semua Shift</option>
+                                    @foreach ($daftarShift as $shiftName)
+                                        <option value="{{ $shiftName }}"
+                                            {{ request('shift') == $shiftName ? 'selected' : '' }}>
+                                            {{ $shiftName }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             {{-- tanggal --}}
                             <div class="col">
                                 <label class="ppx-field-label"><i class="bx bx-calendar"></i>Rentang Tanggal</label>
@@ -222,6 +237,9 @@
             }
             if (request()->filled('mesin')) {
                 $activeFilters['Mesin'] = request('mesin');
+            }
+            if (request()->filled('shift')) {
+                $activeFilters['Shift'] = request('shift');
             }
             if (request()->filled('start_date') || request()->filled('end_date')) {
                 $dateStr = '';
@@ -345,7 +363,9 @@
                                                     }
                                                     try {
                                                         $s = trim(str_replace('T', ' ', (string) $val));
-                                                        return \Carbon\Carbon::parse($s)->format('H:i');
+                                                        return \Carbon\Carbon::parse($s)
+                                                            ->timezone('Asia/Jakarta')
+                                                            ->format('H:i');
                                                     } catch (\Exception $e) {
                                                         return $val;
                                                     }
@@ -379,7 +399,7 @@
                                         <th>{!! _sortHeader('proses', 'Proses', $curSort, $curDir) !!}</th>
                                         <th class="text-center">Qty Order</th>
                                         <th>{!! _sortHeader('mesin', 'Mesin', $curSort, $curDir) !!}</th>
-                                        <th>{!! _sortHeader('operator', 'Operator', $curSort, $curDir) !!}</th>
+                                        <th class="text-center">{!! _sortHeader('operator', 'Shift/Operator', $curSort, $curDir) !!}</th>
                                         <th style="width:10px">{!! _sortHeader('tanggal', 'Tanggal', $curSort, $curDir) !!}</th>
                                         <th class="text-center">Set</th>
                                         <th class="text-center">Run</th>
@@ -390,6 +410,7 @@
                                         <th class="text-center">Jtpcs</th>
                                         <th class="text-center">OutPCS</th>
                                         <th class="text-center">OutDrik</th>
+                                        <th class="text-center">Created</th>
                                         <th class="text-center pe-4" style="width:120px">Aksi</th>
                                     </tr>
                                 </thead>
@@ -444,7 +465,14 @@
                                                     {{ $data->mesin ?? '-' }}
                                                 </span>
                                             </td>
-                                            <td class="small text-nowrap">
+                                            <td class="small text-nowrap ">
+                                                {{-- shift --}}
+                                                <span class="inline-edit-cell d-inline-block text-center"
+                                                    data-id="{{ $data->id }}" data-field="shift"
+                                                    data-value="{{ $data->shift ?? '' }}" style="width: 32px;">
+                                                    {{ $data->shift ?? '-' }}
+                                                </span>
+                                                {{-- operator --}}
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="operator" data-value="{{ $data->operator ?? '' }}">
                                                     @if (strlen($data->operator ?? '') > 10)
@@ -502,14 +530,14 @@
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtdrik" data-value="{{ $data->jtdrik ?? 0 }}"
-                                                    data-editable="{{ strtolower($data->proses ?? '') === 'lem' ? '0' : '1' }}">
+                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem']) ? '0' : '1' }}">
                                                     {{ $data->jtdrik ? number_format($data->jtdrik, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtpcs" data-value="{{ $data->jtpcs ?? 0 }}"
-                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'sortpacking']) ? '1' : '0' }}">
+                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking']) ? '1' : '0' }}">
                                                     {{ $data->jtpcs ? number_format($data->jtpcs, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
@@ -518,6 +546,9 @@
                                             </td>
                                             <td class="text-center fw-semibold">
                                                 {{ $data->outputdrik ? number_format($data->outputdrik, 0, ',', '.') : '0' }}
+                                            </td>
+                                            <td class="text-center fw-semibold text-nowrap">
+                                                {{ $data->created_at ? strtoupper(\Carbon\Carbon::parse($data->created_at)->setTimezone('Asia/Jakarta')->format('d/M/y H:i')) : '-' }}
                                             </td>
                                             {{-- Manage Dropdown --}}
                                             <td class="text-center pe-4">
@@ -988,13 +1019,13 @@
             }
 
             /* ══════════════════════════════════════════════════════
-                           FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
-                           `left` kolom-2 di-set lewat JS (updateStickyOffsets)
-                           karena lebar kolom Job bisa berubah-ubah isinya —
-                           kalau di-hardcode di CSS, begitu isi Job lebih
-                           panjang/pendek, kolom Produk akan salah posisi
-                           (menutupi Job atau ada gap kosong).
-                           ══════════════════════════════════════════════════════ */
+                                                                                                                       FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
+                                                                                                                       `left` kolom-2 di-set lewat JS (updateStickyOffsets)
+                                                                                                                       karena lebar kolom Job bisa berubah-ubah isinya —
+                                                                                                                       kalau di-hardcode di CSS, begitu isi Job lebih
+                                                                                                                       panjang/pendek, kolom Produk akan salah posisi
+                                                                                                                       (menutupi Job atau ada gap kosong).
+                                                                                                                       ══════════════════════════════════════════════════════ */
             .produksi-modern .ppx-sticky-col {
                 position: sticky;
                 z-index: 6;
@@ -1646,7 +1677,7 @@
 
                     const numericFields = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift', 'qty'];
                     const isNumericField = numericFields.includes(field);
-                    if (isNumericField && (value === '' || isNaN(value))) {
+                    if (isNumericField && ((value === '' && field !== 'shift') || (value !== '' && isNaN(value)))) {
                         showToast('Nilai harus berupa angka.', 'danger');
                         cancelInlineEdit();
                         return;
@@ -1672,12 +1703,16 @@
                                     const isSpanNumeric = numericFields.includes(fieldName);
                                     const isSpanTime = ['set', 'run', 'finish'].includes(fieldName);
                                     const isSpanDate = fieldName === 'tanggal';
-                                    $span.text(isSpanNumeric ? parseFloat(values[fieldName])
+                                    $span.text((values[fieldName] === null || values[fieldName] ===
+                                        undefined || values[fieldName] === '') ? '-' : (
+                                        isSpanNumeric ? parseFloat(values[fieldName])
                                         .toLocaleString('id-ID', {
                                             maximumFractionDigits: 0
-                                        }) : (isSpanTime ? formatTimeOnly(values[fieldName]) :
-                                            (isSpanDate ? formatTanggalOnly(values[fieldName]) :
-                                                values[fieldName])));
+                                        }) : (isSpanTime ? formatTimeOnly(values[
+                                                fieldName]) :
+                                            (isSpanDate ? formatTanggalOnly(values[
+                                                    fieldName]) :
+                                                values[fieldName]))));
                                 }
                             });
 
@@ -1691,11 +1726,14 @@
                                         const isSpanNumeric = numericFields.includes(fieldName);
                                         const isSpanTime = ['set', 'run', 'finish'].includes(
                                             fieldName);
-                                        $span.text(isSpanNumeric ? parseFloat(values[fieldName])
+                                        $span.text((values[fieldName] === null || values[
+                                            fieldName] === undefined || values[
+                                            fieldName] === '') ? '-' : (isSpanNumeric ?
+                                            parseFloat(values[fieldName])
                                             .toLocaleString('id-ID', {
                                                 maximumFractionDigits: 0
                                             }) : (isSpanTime ? formatDateTime(values[
-                                                fieldName]) : values[fieldName]));
+                                                fieldName]) : values[fieldName])));
                                     }
                                 });
                             }
@@ -1971,9 +2009,11 @@
                         if (r.editable) {
                             let isEditableVal = '1';
                             if (r.field === 'jtdrik') {
-                                isEditableVal = d.proses.toLowerCase() === 'lem' ? '0' : '1';
+                                isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem'].includes(d.proses
+                                    .toLowerCase()) ? '0' : '1';
                             } else if (r.field === 'jtpcs') {
-                                isEditableVal = ['lem', 'sortpacking'].includes(d.proses.toLowerCase()) ? '1' :
+                                isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking']
+                                    .includes(d.proses.toLowerCase()) ? '1' :
                                     '0';
                             }
 
