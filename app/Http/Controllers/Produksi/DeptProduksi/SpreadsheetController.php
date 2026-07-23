@@ -14,6 +14,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class SpreadsheetController extends Controller
 {
@@ -200,9 +205,8 @@ class SpreadsheetController extends Controller
             'lem',
             'lem setengah jadi',
             'sortir lem',
+            'sortir cetak',
         ])) {
-            // jtpcs
-            $record->jtpcs = $jtpcs;
             // jtdrik = jtpcs/upspk
             $record->jtdrik = $upspk > 0 ? $record->jtpcs / $upspk : 0;
             // outputpcs = input - jt pcs
@@ -835,24 +839,26 @@ class SpreadsheetController extends Controller
             }
         }
 
-        $isLemVariant = in_array(strtolower($prosesName), ['lem', 'lem setengah jadi', 'sortir lem'], true);
-
-        if ($field === 'jtdrik' && $isLemVariant) {
+        if ($field === 'jtdrik' && $prosesName === 'lem') {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT Drik untuk varian proses LEM tidak dapat diinput secara inline.',
+                'message' => 'Kolom JT Drik untuk proses LEM tidak dapat diinput secara inline.',
             ], 422);
         }
 
-        if ($field === 'jtpcs' && ! $isLemVariant && $prosesName !== 'sortpacking') {
+        if ($field === 'jtpcs' && ! in_array($prosesName, ['lem', 'sortpacking'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT PCS hanya dapat diubah untuk varian proses LEM dan SORTPACKING.',
+                'message' => 'Kolom JT PCS hanya dapat diubah untuk proses LEM dan SORTPACKING.',
             ], 422);
+        }
+
+        if ($prosesName === 'lem' && $field === 'jtpcs') {
+            $saveField = 'input';
         }
 
         // Validation: JT Drik cannot be greater than Input
-        if (! $isLemVariant && ! in_array($field, $stringFields, true)) {
+        if ($prosesName !== 'lem' && ! in_array($field, $stringFields, true)) {
             $numericValue = (float) $value;
             if ($field === 'jtdrik' && $numericValue > $record->input) {
                 return response()->json([
@@ -987,5 +993,433 @@ class SpreadsheetController extends Controller
         return response()->json($results->map(function ($item) use ($column) {
             return [$column => $item->{$column}];
         })->values());
+    }
+
+    /**
+     * ══════════════════════════════════════════════════════════════════
+     * EXPORT EXCEL (PhpOffice\PhpSpreadsheet)
+     * ══════════════════════════════════════════════════════════════════
+     */
+
+    /**
+     * Filter query sama persis dengan yang dipakai di indexdata(), tapi
+     * diekstrak jadi method sendiri supaya bisa dipakai ulang oleh kedua
+     * fungsi export tanpa duplikasi & tanpa menyentuh indexdata() yang sudah
+     * berjalan (menghindari risiko regresi).
+     */
+    private function applyProsesFilters($query, Request $request)
+    {
+        $filterProses = $request->get('proses');
+        $filterMesin = $request->get('mesin');
+        $filterId = $request->get('id');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        $filterJob = $request->get('job');
+        $filterOperator = $request->get('operator');
+        $filterTanggal = $request->get('tanggal');
+        $filterDocket = $request->get('designno');
+        $filterProduct = $request->get('product');
+
+        if (! empty($filterId)) {
+            $query->where('id', $filterId);
+        }
+        if (! empty($filterProses)) {
+            $query->where('proses', $filterProses);
+        }
+        if (! empty($filterMesin)) {
+            $query->where('mesin', $filterMesin);
+        }
+        if (! empty($filterJob)) {
+            $jobsList = preg_split('/[\s,;|]+/', trim($filterJob));
+            $jobsList = array_filter($jobsList);
+            if (count($jobsList) > 1) {
+                $query->where(function ($q) use ($jobsList) {
+                    foreach ($jobsList as $jobItem) {
+                        $q->orWhere('job', 'like', '%'.$jobItem.'%');
+                    }
+                });
+            } elseif (count($jobsList) == 1) {
+                $query->where('job', 'like', '%'.$jobsList[0].'%');
+            }
+        }
+        if (! empty($filterOperator)) {
+            $operatorsList = preg_split('/[,;|]+/', trim($filterOperator));
+            $operatorsList = array_filter(array_map('trim', $operatorsList));
+            if (! empty($operatorsList)) {
+                $query->where(function ($q) use ($operatorsList) {
+                    foreach ($operatorsList as $operatorItem) {
+                        $q->orWhere('operator', 'like', '%'.$operatorItem.'%');
+                    }
+                });
+            }
+        }
+        if (! empty($filterTanggal)) {
+            $query->whereDate('tanggal', $filterTanggal);
+        }
+        if (! empty($filterDocket)) {
+            $docketsList = preg_split('/[\s,;|]+/', trim($filterDocket));
+            $docketsList = array_filter($docketsList);
+            if (count($docketsList) > 1) {
+                $query->where(function ($q) use ($docketsList) {
+                    foreach ($docketsList as $docketItem) {
+                        $q->orWhere('designno', 'like', '%'.$docketItem.'%');
+                    }
+                });
+            } elseif (count($docketsList) == 1) {
+                $query->where('designno', 'like', '%'.$docketsList[0].'%');
+            }
+        }
+        if (! empty($filterProduct)) {
+            $productsList = preg_split('/[,;|]+/', trim($filterProduct));
+            $productsList = array_filter(array_map('trim', $productsList));
+            if (! empty($productsList)) {
+                $query->whereIn('product', $productsList);
+            }
+        }
+        if (! empty($startDate) && ! empty($endDate)) {
+            $query->whereBetween('tanggal', [$startDate, $endDate]);
+        } elseif (! empty($startDate)) {
+            $query->whereDate('tanggal', '>=', $startDate);
+        } elseif (! empty($endDate)) {
+            $query->whereDate('tanggal', '<=', $endDate);
+        }
+
+        return $query;
+    }
+
+    /** Hitung totaljam sebuah record persis seperti logika di indexdata()/report(). */
+    private function computeTotalJam($data): float
+    {
+        $totalJam = 0;
+        if (! empty($data->finish) && (! empty($data->set) || ! empty($data->run))) {
+            try {
+                $waktuMulaiString = ! empty($data->set) ? $data->set : $data->run;
+                $waktuMulai = Carbon::parse($waktuMulaiString);
+                $waktuFinish = Carbon::parse($data->finish);
+                $selisihMenit = $waktuMulai->diffInMinutes($waktuFinish);
+                $totalJam = $selisihMenit / 60;
+                if (strtoupper($data->break) === 'TRUE' || $data->break == 1) {
+                    $totalJam -= 1;
+                }
+            } catch (\Exception $e) {
+                $totalJam = 0;
+            }
+        }
+
+        return max(0, round($totalJam, 2));
+    }
+
+    /**
+     * Rangkum SEMUA data satu Job menjadi satu baris pivot (44 kolom sesuai
+     * urutan proses produksi), memakai rumus derived value yang sama persis
+     * dengan yang dipakai di calculateDerivedValues() & report().
+     */
+    private function summarizeJobRow(string $jobId): ?array
+    {
+        $records = ProsesProduksi::where('job', $jobId)->get();
+
+        if ($records->isEmpty()) {
+            return null;
+        }
+
+        $first = $records->first();
+
+        foreach ($records as $data) {
+            $data->totaljam = $this->computeTotalJam($data);
+            $this->calculateDerivedValues($data);
+        }
+
+        $byProses = $records->groupBy(function ($item) {
+            return strtoupper(trim((string) ($item->proses ?? '')));
+        });
+
+        $sumField = fn ($collection, $field) => $collection->sum(fn ($x) => (float) ($x->{$field} ?? 0));
+        $firstByTanggal = fn ($collection) => $collection->sortBy('tanggal')->first();
+        $breakLabel = fn ($item) => $item ? ((strtoupper((string) $item->break) === 'TRUE' || $item->break == 1) ? 'YA' : 'TIDAK') : '-';
+        $tglFmt = fn ($item) => $item && $item->tanggal ? Carbon::parse($item->tanggal)->format('d-m-Y') : '-';
+        $jamFmt = fn ($val) => $val ? Carbon::parse($val)->format('H:i') : '-';
+
+        $row = [
+            'JOB' => $jobId,
+            'PRODUCT' => $first->product ?? '-',
+            'DOCKET' => $first->designno ?? '-',
+            'PO' => $first->po ?? '-',
+            'QTY' => (float) ($first->qty ?? 0),
+        ];
+
+        // PRINT
+        $print = $byProses->get('PRINT', collect());
+        $printFirst = $firstByTanggal($print);
+        $row['TGL PRINT'] = $tglFmt($printFirst);
+        $row['BREAK'] = $breakLabel($printFirst);
+        $row['TOTAL JAM'] = $sumField($print, 'totaljam');
+        $row['OUTPUT PRINT'] = $sumField($print, 'outputdrik');
+        $row['JT PRINT'] = $sumField($print, 'jtdrik');
+
+        // SORTIR CETAK
+        $sortirCetak = $byProses->get('SORTIR CETAK', collect());
+        $sortirCetakFirst = $firstByTanggal($sortirCetak);
+        $row['TGL SORTIRCETAK'] = $tglFmt($sortirCetakFirst);
+        $row['OUTPUT SORTIRCETAK'] = $sumField($sortirCetak, 'outputdrik');
+        $row['JT SORTIRCETAK'] = $sumField($sortirCetak, 'jtdrik');
+
+        // Proses yang hanya butuh OUTPUT & JT
+        $simpleProcesses = ['WATERBASE', 'HOCK', 'HOTPRINT', 'LAMINASI', 'LAMINATING', 'EMBOSS', 'DIECUT', 'CUTTING'];
+        foreach ($simpleProcesses as $p) {
+            $coll = $byProses->get($p, collect());
+            $row["OUTPUT {$p}"] = $sumField($coll, 'outputdrik');
+            $row["JT {$p}"] = $sumField($coll, 'jtdrik');
+        }
+
+        // LEM SETENGAH JADI
+        $lemSetengah = $byProses->get('LEM SETENGAH JADI', collect());
+        $row['TOTAL JAM LEM SETENGAH JADI'] = $sumField($lemSetengah, 'totaljam');
+        $row['OUTPUT LEM SETENGAH JADI'] = $sumField($lemSetengah, 'outputdrik');
+        $row['JT LEM SETENGAH JADI'] = $sumField($lemSetengah, 'jtdrik');
+
+        // LEM
+        $lem = $byProses->get('LEM', collect());
+        $lemFirst = $firstByTanggal($lem);
+        $row['JAM SET LEM'] = $jamFmt($lemFirst->set ?? null);
+        $row['JAM RUN LEM'] = $jamFmt($lemFirst->run ?? null);
+        $row['JAM FINISH LEM'] = $jamFmt($lemFirst->finish ?? null);
+        $row['BREAK LEM'] = $breakLabel($lemFirst);
+        $row['TOTAL JAM LEM'] = $sumField($lem, 'totaljam');
+        $row['OUTPUT LEM'] = $sumField($lem, 'outputdrik');
+        $row['JT LEM'] = $sumField($lem, 'jtdrik');
+
+        // SORTIR LEM
+        $sortirLem = $byProses->get('SORTIR LEM', collect());
+        $row['TOTAL JAM SORTIR LEM'] = $sumField($sortirLem, 'totaljam');
+        $row['OUTPUT SORTIR LEM'] = $sumField($sortirLem, 'outputdrik');
+        $row['JT SORTIR LEM'] = $sumField($sortirLem, 'jtdrik');
+
+        // SORTPACKING — dipecah jadi porsi SORTIR & PACKING, rumus sama seperti report()
+        $sortpacking = $byProses->get('SORTPACKING', collect());
+        $outputSortir = 0;
+        $jtSortir = 0;
+        $outputPacking = 0;
+        foreach ($sortpacking as $item) {
+            $itemInput = (float) str_replace('.', '', (string) ($item->input ?? 0));
+            $itemUpspk = (float) str_replace('.', '', (string) ($item->upspk ?? 0));
+            $itemJtpcs = (float) str_replace('.', '', (string) ($item->jtpcs ?? 0));
+
+            $itemJtdrikSortir = $itemUpspk > 0 ? $itemJtpcs / $itemUpspk : 0;
+            $itemOutputpcsSortir = $itemInput + $itemJtpcs;
+            $itemOutputdrikSortir = $itemUpspk > 0 ? $itemOutputpcsSortir / $itemUpspk : 0;
+            $itemOutputdrikPacking = $itemUpspk > 0 ? $itemInput / $itemUpspk : 0;
+
+            $jtSortir += $itemJtdrikSortir;
+            $outputSortir += $itemOutputdrikSortir;
+            $outputPacking += $itemOutputdrikPacking;
+        }
+        $row['TOTAL JAM SORTPACKING'] = $sumField($sortpacking, 'totaljam');
+        $row['OUTPUT SORTIR'] = $outputSortir;
+        $row['JT SORTIR'] = $jtSortir;
+        $row['OUTPUT PACKING'] = $outputPacking;
+
+        return $row;
+    }
+
+    /** Kasih style header (bold + fill ungu + center) & freeze baris 1. */
+    private function styleHeaderRow($sheet, int $columnCount): void
+    {
+        $lastCol = Coordinate::stringFromColumnIndex($columnCount);
+        $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '696CFF'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(30);
+        $sheet->freezePane('A2');
+    }
+
+    private function autoSizeColumns($sheet, int $columnCount): void
+    {
+        for ($i = 1; $i <= $columnCount; $i++) {
+            $col = Coordinate::stringFromColumnIndex($i);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+    }
+
+    /** Stream file .xlsx langsung ke browser sebagai download. */
+    private function streamExcel(Spreadsheet $spreadsheet, string $filename)
+    {
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0',
+        ]);
+    }
+
+    /**
+     * EXPORT SUMMARY — satu baris per JOB, semua proses dipivot jadi kolom.
+     * Job mana saja yang diikutkan mengikuti filter yang sedang aktif di
+     * halaman index (job/docket/product/operator/proses/mesin/tanggal),
+     * tapi begitu satu Job "kena" filter, SEMUA data Job itu (lintas
+     * proses) tetap dipakai — sama seperti halaman Report.
+     */
+    public function exportSummary(Request $request)
+    {
+        $query = ProsesProduksi::query();
+        $this->applyProsesFilters($query, $request);
+
+        $jobIds = (clone $query)
+            ->whereNotNull('job')
+            ->where('job', '!=', '')
+            ->distinct()
+            ->orderBy('job')
+            ->pluck('job');
+
+        if ($jobIds->isEmpty()) {
+            return back()->with('error', 'Tidak ada data untuk diekspor.');
+        }
+
+        $headers = [
+            'JOB', 'PRODUCT', 'DOCKET', 'PO', 'QTY',
+            'TGL PRINT', 'BREAK', 'TOTAL JAM', 'OUTPUT PRINT', 'JT PRINT',
+            'TGL SORTIRCETAK', 'OUTPUT SORTIRCETAK', 'JT SORTIRCETAK',
+            'OUTPUT WATERBASE', 'JT WATERBASE',
+            'OUTPUT HOCK', 'JT HOCK',
+            'OUTPUT HOTPRINT', 'JT HOTPRINT',
+            'OUTPUT LAMINASI', 'JT LAMINASI',
+            'OUTPUT LAMINATING', 'JT LAMINATING',
+            'OUTPUT EMBOSS', 'JT EMBOSS',
+            'OUTPUT DIECUT', 'JT DIECUT',
+            'OUTPUT CUTTING', 'JT CUTTING',
+            'TOTAL JAM LEM SETENGAH JADI', 'OUTPUT LEM SETENGAH JADI', 'JT LEM SETENGAH JADI',
+            'JAM SET LEM', 'JAM RUN LEM', 'JAM FINISH LEM', 'BREAK', 'TOTAL JAM LEM', 'OUTPUT LEM', 'JT LEM',
+            'TOTAL JAM SORTIR LEM', 'OUTPUT SORTIR LEM', 'JT SORTIR LEM',
+            'TOTAL JAM SORTPACKING', 'OUTPUT SORTIR', 'JT SORTIR', 'OUTPUT PACKING',
+        ];
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Summary Production');
+        $sheet->fromArray($headers, null, 'A1');
+        $this->styleHeaderRow($sheet, count($headers));
+
+        $rowNum = 2;
+        foreach ($jobIds as $jobId) {
+            $data = $this->summarizeJobRow($jobId);
+            if (! $data) {
+                continue;
+            }
+
+            $sheet->fromArray([
+                $data['JOB'], $data['PRODUCT'], $data['DOCKET'], $data['PO'], $data['QTY'],
+                $data['TGL PRINT'], $data['BREAK'], $data['TOTAL JAM'], $data['OUTPUT PRINT'], $data['JT PRINT'],
+                $data['TGL SORTIRCETAK'], $data['OUTPUT SORTIRCETAK'], $data['JT SORTIRCETAK'],
+                $data['OUTPUT WATERBASE'], $data['JT WATERBASE'],
+                $data['OUTPUT HOCK'], $data['JT HOCK'],
+                $data['OUTPUT HOTPRINT'], $data['JT HOTPRINT'],
+                $data['OUTPUT LAMINASI'], $data['JT LAMINASI'],
+                $data['OUTPUT LAMINATING'], $data['JT LAMINATING'],
+                $data['OUTPUT EMBOSS'], $data['JT EMBOSS'],
+                $data['OUTPUT DIECUT'], $data['JT DIECUT'],
+                $data['OUTPUT CUTTING'], $data['JT CUTTING'],
+                $data['TOTAL JAM LEM SETENGAH JADI'], $data['OUTPUT LEM SETENGAH JADI'], $data['JT LEM SETENGAH JADI'],
+                $data['JAM SET LEM'], $data['JAM RUN LEM'], $data['JAM FINISH LEM'], $data['BREAK LEM'], $data['TOTAL JAM LEM'], $data['OUTPUT LEM'], $data['JT LEM'],
+                $data['TOTAL JAM SORTIR LEM'], $data['OUTPUT SORTIR LEM'], $data['JT SORTIR LEM'],
+                $data['TOTAL JAM SORTPACKING'], $data['OUTPUT SORTIR'], $data['JT SORTIR'], $data['OUTPUT PACKING'],
+            ], null, 'A'.$rowNum);
+            $rowNum++;
+        }
+
+        $this->autoSizeColumns($sheet, count($headers));
+
+        return $this->streamExcel($spreadsheet, 'summary-production-'.now()->format('Ymd-His').'.xlsx');
+    }
+
+    /**
+     * EXPORT MUTASI — satu baris per record mentah (tidak ditotal), sama
+     * seperti data yang tampil di tabel index, mengikuti filter & sort yang
+     * sedang aktif.
+     */
+    public function exportMutasi(Request $request)
+    {
+        $query = ProsesProduksi::query();
+        $this->applyProsesFilters($query, $request);
+
+        $allowedSorts = [
+            'job' => 'job',
+            'docket' => 'designno',
+            'proses' => 'proses',
+            'mesin' => 'mesin',
+            'product' => 'product',
+            'operator' => 'operator',
+            'tanggal' => 'tanggal',
+        ];
+        $sort = $request->query('sort');
+        $dir = strtolower($request->query('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        if ($sort && isset($allowedSorts[$sort])) {
+            $query->orderBy($allowedSorts[$sort], $dir);
+        } else {
+            $query->orderBy('id', 'desc');
+        }
+
+        $records = $query->get();
+
+        if ($records->isEmpty()) {
+            return back()->with('error', 'Tidak ada data untuk diekspor.');
+        }
+
+        foreach ($records as $data) {
+            $data->totaljam = $this->computeTotalJam($data);
+            $this->calculateDerivedValues($data);
+        }
+
+        $headers = [
+            'JOB', 'PRODUCT', 'DOCKET', 'PO', 'QTY', 'PROSES', 'MESIN', 'OPERATOR', 'TANGGAL',
+            'JAM SET', 'JAM RUN', 'JAM FINISH', 'BREAK', 'TOTAL JAM',
+            'UPSPK', 'INPUT', 'JTDRIK', 'JTPCS', 'OUTPUTDRIK', 'OUTPUTPCS',
+        ];
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Mutasi Production');
+        $sheet->fromArray($headers, null, 'A1');
+        $this->styleHeaderRow($sheet, count($headers));
+
+        $rowNum = 2;
+        foreach ($records as $data) {
+            $sheet->fromArray([
+                $data->job ?? '-',
+                $data->product ?? '-',
+                $data->designno ?? '-',
+                $data->po ?? '-',
+                (float) ($data->qty ?? 0),
+                $data->proses ?? '-',
+                $data->mesin ?? '-',
+                $data->operator ?? '-',
+                $data->tanggal ? Carbon::parse($data->tanggal)->format('d-m-Y') : '-',
+                $data->set ? Carbon::parse($data->set)->format('H:i') : '-',
+                $data->run ? Carbon::parse($data->run)->format('H:i') : '-',
+                $data->finish ? Carbon::parse($data->finish)->format('H:i') : '-',
+                (strtoupper((string) $data->break) === 'TRUE' || $data->break == 1) ? 'YA' : 'TIDAK',
+                (float) ($data->totaljam ?? 0),
+                (float) ($data->upspk ?? 0),
+                (float) ($data->input ?? 0),
+                (float) ($data->jtdrik ?? 0),
+                (float) ($data->jtpcs ?? 0),
+                (float) ($data->outputdrik ?? 0),
+                (float) ($data->outputpcs ?? 0),
+            ], null, 'A'.$rowNum);
+            $rowNum++;
+        }
+
+        $this->autoSizeColumns($sheet, count($headers));
+
+        return $this->streamExcel($spreadsheet, 'mutasi-production-'.now()->format('Ymd-His').'.xlsx');
     }
 }

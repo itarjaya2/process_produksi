@@ -25,14 +25,26 @@
                 <p class="text-muted mb-0 small">Kelola dan pantau seluruh data proses produksi</p>
             </div>
             <div class="d-flex gap-2">
-                <a href="{{ route('spreadsheet.index') }}" class="btn btn-primary d-flex align-items-center gap-1 shadow-sm">
+                <a href="{{ route('spreadsheet.index') }}"
+                    class="btn btn-sm btn-primary d-flex align-items-center gap-1 shadow-sm">
                     <i class="bx bx-plus fs-5"></i>
                     Add Data
                 </a>
-                <a href="{{ route('activity-logs.index') }}" class="btn btn-outline-primary d-flex align-items-center gap-1">
+                <a href="{{ route('activity-logs.index') }}"
+                    class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
                     <i class="bx bx-history fs-5"></i>
                     Activity Log
                 </a>
+                {{-- <a href="{{ route('export.production-mutasi') }}"
+                    class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
+                    <i class="bx bx-download fs-5"></i>
+                    Export Mutation
+                </a>
+                <a href="{{ route('export.production-summary') }}"
+                    class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
+                    <i class="bx bx-download fs-5"></i>
+                    Export Summary
+                </a> --}}
             </div>
         </div>
 
@@ -175,13 +187,10 @@
                             </div>
 
                             {{-- Tombol aksi --}}
-                            <div class="col d-flex align-items-end gap-2">
+                            <div class="col d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary ppx-btn-apply">
                                     <i class="bx bx-filter-alt me-1"></i>Filter
                                 </button>
-                                <a href="{{ route('proses-produksi.indexdata') }}" class="btn ppx-btn-reset">
-                                    <i class="bx bx-refresh me-1"></i>Reset
-                                </a>
                             </div>
 
                         </div>
@@ -237,7 +246,7 @@
                         </span>
                     @endforeach
                 </div>
-                <a href="{{ route('spreadsheet.index') }}"
+                <a href="{{ route('proses-produksi.indexdata') }}"
                     class="btn btn-sm ppx-btn-clear d-flex align-items-center gap-1">
                     <i class="bx bx-trash-alt"></i> Bersihkan Semua
                 </a>
@@ -364,11 +373,11 @@
                                                 return $html;
                                             }
                                         @endphp
-                                        <th class="ppx-sticky-col">{!! _sortHeader('job', 'Job', $curSort, $curDir) !!}</th>
+                                        <th class="ppx-sticky-col ppx-sticky-col-1">{!! _sortHeader('job', 'Job', $curSort, $curDir) !!}</th>
+                                        <th class="ppx-sticky-col ppx-sticky-col-2">{!! _sortHeader('product', 'Produk', $curSort, $curDir) !!}</th>
                                         <th>{!! _sortHeader('docket', 'Docket', $curSort, $curDir) !!}</th>
                                         <th>{!! _sortHeader('proses', 'Proses', $curSort, $curDir) !!}</th>
-                                        <th>{!! _sortHeader('product', 'Produk', $curSort, $curDir) !!}</th>
-                                        <th class="text-center">Qty</th>
+                                        <th class="text-center">Qty Order</th>
                                         <th>{!! _sortHeader('mesin', 'Mesin', $curSort, $curDir) !!}</th>
                                         <th>{!! _sortHeader('operator', 'Operator', $curSort, $curDir) !!}</th>
                                         <th style="width:10px">{!! _sortHeader('tanggal', 'Tanggal', $curSort, $curDir) !!}</th>
@@ -388,7 +397,7 @@
                                 <tbody>
                                     @forelse ($prosesProduksi as $data)
                                         <tr>
-                                            <td class="ppx-sticky-col">
+                                            <td class="ppx-sticky-col ppx-sticky-col-1">
                                                 @if ($data->job)
                                                     <a href="{{ route('proses-produksi.rangkuman', $data->job) }}"
                                                         class="fw-semibold text-decoration-none ppx-link">
@@ -396,6 +405,17 @@
                                                     </a>
                                                 @else
                                                     <span class="text-muted">-</span>
+                                                @endif
+                                            </td>
+                                            <td class="small text-nowrap ppx-sticky-col ppx-sticky-col-2">
+                                                @if (strlen($data->product ?? '') > 15)
+                                                    <span class="product-toggle ppx-toggle-text"
+                                                        data-full="{{ $data->product }}"
+                                                        data-short="{{ \Illuminate\Support\Str::limit($data->product, 15) }}">
+                                                        {{ \Illuminate\Support\Str::limit($data->product, 15) }}
+                                                    </span>
+                                                @else
+                                                    {{ $data->product ?? '-' }}
                                                 @endif
                                             </td>
                                             <td class="small text-nowrap">{{ $data->designno ?? '-' }}</td>
@@ -412,20 +432,9 @@
                                                     {{ _prosesLabel($data->proses ?? '-') }}
                                                 </span>
                                             </td>
-                                            <td class="small text-nowrap">
-                                                @if (strlen($data->product ?? '') > 15)
-                                                    <span class="product-toggle ppx-toggle-text"
-                                                        data-full="{{ $data->product }}"
-                                                        data-short="{{ \Illuminate\Support\Str::limit($data->product, 15) }}">
-                                                        {{ \Illuminate\Support\Str::limit($data->product, 15) }}
-                                                    </span>
-                                                @else
-                                                    {{ $data->product ?? '-' }}
-                                                @endif
-                                            </td>
                                             <td class="text-center fw-semibold">
-                                                <span class="inline-edit-cell" data-id="{{ $data->id }}"
-                                                    data-field="qty" data-value="{{ $data->qty ?? 0 }}">
+                                                <span data-id="{{ $data->id }}" data-field="qty"
+                                                    data-value="{{ $data->qty ?? 0 }}">
                                                     {{ $data->qty ? number_format($data->qty, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
@@ -493,14 +502,14 @@
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtdrik" data-value="{{ $data->jtdrik ?? 0 }}"
-                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem']) ? '0' : '1' }}">
+                                                    data-editable="{{ strtolower($data->proses ?? '') === 'lem' ? '0' : '1' }}">
                                                     {{ $data->jtdrik ? number_format($data->jtdrik, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtpcs" data-value="{{ $data->jtpcs ?? 0 }}"
-                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking']) ? '1' : '0' }}">
+                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'sortpacking']) ? '1' : '0' }}">
                                                     {{ $data->jtpcs ? number_format($data->jtpcs, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
@@ -572,7 +581,7 @@
                                     @endforelse
                                 <tfoot class="ppx-tfoot fw-bold">
                                     <tr>
-                                        <td colspan="10" class="text-center">GRAND TOTAL</td>
+                                        <td colspan="12" class="text-center">GRAND TOTAL</td>
                                         <td class="text-center">{{ number_format($total['input'], 0, ',', '.') }}</td>
                                         <td class="text-center">{{ number_format($total['jtdrik'], 0, ',', '.') }}</td>
                                         <td class="text-center">{{ number_format($total['jtpcs'], 0, ',', '.') }}</td>
@@ -978,11 +987,27 @@
                 white-space: nowrap;
             }
 
+            /* ══════════════════════════════════════════════════════
+                           FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
+                           `left` kolom-2 di-set lewat JS (updateStickyOffsets)
+                           karena lebar kolom Job bisa berubah-ubah isinya —
+                           kalau di-hardcode di CSS, begitu isi Job lebih
+                           panjang/pendek, kolom Produk akan salah posisi
+                           (menutupi Job atau ada gap kosong).
+                           ══════════════════════════════════════════════════════ */
             .produksi-modern .ppx-sticky-col {
                 position: sticky;
-                left: 0;
                 z-index: 6;
                 background-color: var(--ppx-surface, #ffffff);
+            }
+
+            .produksi-modern .ppx-sticky-col-1 {
+                left: 0;
+            }
+
+            .produksi-modern .ppx-sticky-col-2 {
+                left: 0;
+                /* nilai asli di-override oleh JS updateStickyOffsets() */
                 box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.08);
             }
 
@@ -1272,6 +1297,18 @@
             let modalBs;
             const modalBody = document.getElementById('modalBody');
 
+            // ── Freeze 2 kolom (Job + Produk): hitung lebar kolom Job dari
+            // header (bukan dari td, karena td bisa punya lebar berbeda per
+            // baris) lalu jadikan offset `left` untuk kolom Produk. ──
+            function updateStickyOffsets() {
+                const firstCol = document.querySelector('#tblProduksi thead th.ppx-sticky-col-1');
+                if (!firstCol) return;
+                const width = firstCol.getBoundingClientRect().width;
+                document.querySelectorAll('#tblProduksi .ppx-sticky-col-2').forEach(function(el) {
+                    el.style.left = width + 'px';
+                });
+            }
+
             function updateScrollButton() {
                 if (!wrapper) return;
                 const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
@@ -1310,10 +1347,14 @@
                     wrapper.addEventListener('scroll', updateScrollButton);
                     updateScrollButton();
                 }
+                updateStickyOffsets();
             }
 
             window.addEventListener('load', bindScrollWrapper);
-            window.addEventListener('resize', updateScrollButton);
+            window.addEventListener('resize', function() {
+                updateScrollButton();
+                updateStickyOffsets();
+            });
             bindScrollWrapper();
 
             function scrollTabel(x) {
@@ -1930,9 +1971,10 @@
                         if (r.editable) {
                             let isEditableVal = '1';
                             if (r.field === 'jtdrik') {
-                                isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem'].includes(d.proses.toLowerCase()) ? '0' : '1';
+                                isEditableVal = d.proses.toLowerCase() === 'lem' ? '0' : '1';
                             } else if (r.field === 'jtpcs') {
-                                isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking'].includes(d.proses.toLowerCase()) ? '1' : '0';
+                                isEditableVal = ['lem', 'sortpacking'].includes(d.proses.toLowerCase()) ? '1' :
+                                    '0';
                             }
 
                             const isNumeric = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift'].includes(r.field);

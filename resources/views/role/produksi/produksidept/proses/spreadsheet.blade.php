@@ -64,6 +64,7 @@
                                             class="proses border border-gray-300 rounded-md px-2 py-1 w-2/3">
                                             <option value="" selected>--Pilih Proses--</option>
                                             <option value="PRINT">PRINT</option>
+                                            <option value="SORTIR CETAK">SORTIR CETAK</option>
                                             <option value="WATERBASE">WATERBASE</option>
                                             <option value="HOCK">HOCK</option>
                                             <option value="HOTPRINT">HOTPRINT</option>
@@ -75,6 +76,7 @@
                                             <option value="PRETEL">PRETEL</option>
                                             <option value="LEM">LEM</option>
                                             <option value="LEM SETENGAH JADI">LEM SETENGAH JADI</option>
+                                            <option value="SORTIR LEM">SORTIR LEM</option>
                                             <option value="SORTPACKING">SORTPACKING</option>
                                         </select>
                                     </div>
@@ -89,6 +91,10 @@
                                                     <option>{{ $staff->nama }}</option>
                                                 @endif
                                             @endforeach
+                                            <option>DWI ANGGA ULIYA</option>
+                                            <option>SINDHU BASKARA PRIHANANTO</option>
+                                            <option>DJAINURI</option>
+                                            <option>MOCHAMAD HANAFI</option>
                                         </select>
                                     </div>
                                     <div class="flex items-center">
@@ -276,15 +282,30 @@
                                                 placeholder="Tambahan pcs">
                                         </div>
                                     </div>
-                                    <div class="flex items-center">
+
+                                    <!-- SORTIR CETAK: Karantina + OK (outputdrik = karantina + ok) -->
+                                    <div class="sortircetak-section hidden space-y-2 text-sm">
+                                        <div class="flex items-center">
+                                            <label class="w-1/3">Karantina</label>
+                                            <input name="karantina[]" type="text"
+                                                class="karantina-input border px-2 py-1 w-2/3 rounded-md">
+                                        </div>
+                                        <div class="flex items-center">
+                                            <label class="w-1/3">OK</label>
+                                            <input name="ok[]" type="text"
+                                                class="ok-input border px-2 py-1 w-2/3 rounded-md">
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center input-drik-row">
                                         <label class="w-1/3">Input (DRIK)<sup class="text-red-600"> *Jika LEM, Input
                                                 = PCS</sup></label>
                                         <input name="input[]" type="text"
                                             class="input-drk border px-2 py-1 w-2/3 rounded-md">
                                     </div>
 
-                                    <!-- SORTPACKING -->
-                                    <div class="sortpacking-section hidden space-y-2 text-sm">
+                                    <!-- JT dinamis: dipakai bersama oleh SORTPACKING, SORTIR CETAK, dan SORTIR LEM -->
+                                    <div class="jt-section hidden space-y-2 text-sm">
                                         <div class="flex justify-between items-center mb-2">
                                             <label class="font-semibold">JT</label>
                                             <button type="button"
@@ -293,7 +314,10 @@
                                         </div>
 
                                         <div class="jt-container space-y-2"></div>
+                                    </div>
 
+                                    <!-- SORTPACKING -->
+                                    <div class="sortpacking-section hidden space-y-2 text-sm">
                                         <div class="flex items-center">
                                             <label class="w-1/3">Sortir PCS</label>
                                             <input type="number" name="sortirpcs[]"
@@ -438,6 +462,13 @@
                 const isiboxInput = row.querySelector('.isibox-input');
                 const tambahanIsiInput = row.querySelector('.tambahanisi-input');
 
+                // SORTIR CETAK: Karantina + OK
+                const sortircetakSection = row.querySelector('.sortircetak-section');
+                const karantinaInput = row.querySelector('.karantina-input');
+                const okInput = row.querySelector('.ok-input');
+
+                // JT dinamis (dipakai bersama SORTPACKING, SORTIR CETAK, SORTIR LEM)
+                const jtSection = row.querySelector('.jt-section');
 
                 const sortirSection = row.querySelector('.sortpacking-section');
                 const timSection = row.querySelector('.tim-section');
@@ -535,13 +566,13 @@
                 }
 
                 [setInput, runInput, finishInput].forEach(input => input?.addEventListener('change',
-                validateOrder));
+                    validateOrder));
 
                 // ===== format angka (sama persis) =====
                 // convert number inputs to text with formatting
                 const numberInputs = row.querySelectorAll(
-                    'input[type="number"], input.input-drk, input.upspk-input, input.jtdrik-input, input.jtpcs-input, input.box-input, input.isibox-input'
-                    );
+                    'input[type="number"], input.input-drk, input.upspk-input, input.jtdrik-input, input.jtpcs-input, input.box-input, input.isibox-input, input.karantina-input, input.ok-input'
+                );
                 numberInputs.forEach(input => {
                     // convert initial type to text to control formatting (keep name attribute)
                     if (input) {
@@ -612,7 +643,8 @@
                     let targetGender = null;
                     switch (selectedProses) {
                         case 'PRINT':
-                            targetBagian = 'PRINTING';
+                        case 'SORTIR CETAK':
+                            targetBagian = ['QC', 'PRINTING'];
                             break;
                         case 'WATERBASE':
                         case 'LAMINASI':
@@ -636,6 +668,7 @@
                             targetBagian = 'FINISHING';
                             targetGender = 'LAKI-LAKI';
                             break;
+                        case 'SORTIR LEM':
                         case 'SORTPACKING':
                             targetBagian = 'FINISHING';
                             targetGender = 'PEREMPUAN';
@@ -645,7 +678,7 @@
                     }
 
                     filteredOperators = allOptions.filter(opt =>
-                        opt.departement === 'PRODUKSI' &&
+                        opt.departement === 'PRODUKSI' || opt.departement === 'QC' &&
                         opt.status === 'AKTIF' &&
                         (!targetBagian ||
                             (Array.isArray(targetBagian) ?
@@ -695,7 +728,7 @@
                     }
                 });
 
-                // ===== JT Sortpacking Dinamis (sama persis) =====
+                // ===== JT Dinamis — dipakai bersama SORTPACKING, SORTIR CETAK, SORTIR LEM (sama persis + recalculate) =====
                 let selectedJt = [];
                 addJtBtn?.addEventListener('click', () => {
                     const available = allJtTypes.filter(jt => !selectedJt.includes(jt));
@@ -738,14 +771,14 @@
                         const val = select.value;
                         selectedJt = selectedJt.filter(jt => jt !== val);
                         wrapper.remove();
-                        proses.dispatchEvent(new Event('change'));
+                        calculate();
                     });
 
                     wrapper.append(select, input, removeBtn);
                     jtContainer.append(wrapper);
                 });
 
-                // ===== Kalkulasi (sama persis) =====
+                // ===== Kalkulasi =====
                 function calculate() {
                     const proc = (proses?.value || '').trim().toUpperCase();
                     const up = parseFloat(unformatNumber(upspk?.value)) || 0;
@@ -753,20 +786,29 @@
                     const jtpcsVal = parseFloat(unformatNumber(jtPcs?.value)) || 0;
                     let inputVal = 0; // Inisialisasi inputVal
 
+                    // Total dari semua input JT dinamis (dipakai SORTPACKING, SORTIR CETAK, SORTIR LEM)
+                    let jtDynamicSum = 0;
+                    jtContainer?.querySelectorAll('input[type="number"], input[type="text"]').forEach(inp => {
+                        jtDynamicSum += parseFloat(unformatNumber(inp.value)) || 0;
+                    });
+
                     if (proc === 'SORTPACKING') {
-                        // Logika baru untuk SORTPACKING
+                        // Logika untuk SORTPACKING
                         const boxVal = parseFloat(unformatNumber(boxInput?.value)) || 0;
                         const isiboxVal = parseFloat(unformatNumber(isiboxInput?.value)) || 0;
                         const tambahanVal = parseFloat(unformatNumber(tambahanIsiInput?.value)) || 0;
 
-                        // RUMUS BARU:
-                        // (box × isibox) + tambahan isi
+                        // RUMUS: (box × isibox) + tambahan isi
                         inputVal = (boxVal * isiboxVal) + tambahanVal;
 
 
                         // Tampilkan hasil perhitungan di kolom Input (DRIK)
                         if (inputDrik) inputDrik.value = formatNumber(Math.floor(inputVal));
                         if (inputDrik) inputDrik.readOnly = true; // Jadikan readOnly jika hasil rumus
+                    } else if (proc === 'SORTIR CETAK') {
+                        // SORTIR CETAK tidak memakai Input (DRIK) — output berasal dari Karantina + OK
+                        inputVal = 0;
+                        if (inputDrik) inputDrik.readOnly = true;
                     } else {
                         // Logika default, ambil nilai dari inputDrik
                         inputVal = parseFloat(unformatNumber(inputDrik?.value)) || 0;
@@ -778,8 +820,24 @@
                         el.addEventListener('change', calculate);
                     });
 
-                    // default hide/show
-                    if (!sortirSection?.classList) {}
+                    // Baris Input (DRIK) disembunyikan khusus untuk SORTIR CETAK
+                    const inputDrikRow = inputDrik?.closest('.input-drik-row');
+                    if (inputDrikRow) inputDrikRow.style.display = (proc === 'SORTIR CETAK') ? 'none' : '';
+
+                    // Section JT dinamis tampil untuk SORTPACKING, SORTIR CETAK, SORTIR LEM
+                    if (proc === 'SORTPACKING' || proc === 'SORTIR CETAK' || proc === 'SORTIR LEM') {
+                        jtSection?.classList.remove('hidden');
+                    } else {
+                        jtSection?.classList.add('hidden');
+                    }
+
+                    // Section khusus SORTIR CETAK (Karantina + OK)
+                    if (proc === 'SORTIR CETAK') {
+                        sortircetakSection?.classList.remove('hidden');
+                    } else {
+                        sortircetakSection?.classList.add('hidden');
+                    }
+
                     if (proc === 'SORTPACKING') {
                         sortirSection?.classList.remove('hidden');
                         timSection?.classList.remove('hidden');
@@ -787,13 +845,7 @@
                         if (outputDrik && outputDrik.parentElement) outputDrik.parentElement.style.display = 'none';
                         if (outputPcs && outputPcs.parentElement) outputPcs.parentElement.style.display = 'none';
 
-                        let jtSum = 0;
-                        // Hitung semua input JT yang aktif (per row)
-                        jtContainer.querySelectorAll('input[type="number"], input[type="text"]').forEach(inp => {
-                            // some JT inputs were turned to text by formatting — accept both
-                            jtSum += parseFloat(unformatNumber(inp.value)) || 0;
-                        });
-
+                        const jtSum = jtDynamicSum;
                         const jtdrikVal = up > 0 ? jtSum / up : 0;
                         const sortirpcsVal = inputVal + jtSum;
                         const sortirdrikVal = up > 0 ? sortirpcsVal / up : 0;
@@ -806,6 +858,55 @@
                         if (sortirdrik) sortirdrik.value = formatNumber(Math.floor(sortirdrikVal));
                         if (packingpcs) packingpcs.value = formatNumber(Math.floor(packingpcsVal));
                         if (packingdrik) packingdrik.value = formatNumber(Math.floor(packingdrikVal));
+
+                    } else if (proc === 'SORTIR CETAK') {
+                        // Tidak pakai section sortpacking/tim/box
+                        sortirSection?.classList.add('hidden');
+                        timSection?.classList.add('hidden');
+                        boxSection?.classList.add('hidden');
+                        if (outputDrik && outputDrik.parentElement) outputDrik.parentElement.style.display = '';
+                        if (outputPcs && outputPcs.parentElement) outputPcs.parentElement.style.display = '';
+
+                        if (jtDrik) jtDrik.readOnly = true;
+                        if (jtPcs) jtPcs.readOnly = true;
+
+                        const karantinaVal = parseFloat(unformatNumber(karantinaInput?.value)) || 0;
+                        const okVal = parseFloat(unformatNumber(okInput?.value)) || 0;
+
+                        // RUMUS: outputdrik = karantina + ok
+                        const outputdrikVal = karantinaVal + okVal;
+                        // JT dinamis masuk LANGSUNG ke JT Drik (tanpa dibagi UP SPK)
+                        const jtdrikVal = jtDynamicSum;
+                        const jtpcsVal2 = jtdrikVal * up;
+                        const outputpcsVal = outputdrikVal * up;
+
+                        if (jtDrik) jtDrik.value = formatNumber(Math.floor(jtdrikVal));
+                        if (jtPcs) jtPcs.value = formatNumber(Math.floor(jtpcsVal2));
+                        if (outputDrik) outputDrik.value = formatNumber(Math.max(0, Math.floor(outputdrikVal)));
+                        if (outputPcs) outputPcs.value = formatNumber(Math.max(0, Math.floor(outputpcsVal)));
+
+                    } else if (proc === 'SORTIR LEM') {
+                        // Seperti SORTPACKING tapi tanpa box/isibox/tambahan isi/tim/packing — input diisi manual biasa
+                        sortirSection?.classList.add('hidden');
+                        timSection?.classList.add('hidden');
+                        boxSection?.classList.add('hidden');
+                        if (outputDrik && outputDrik.parentElement) outputDrik.parentElement.style.display = '';
+                        if (outputPcs && outputPcs.parentElement) outputPcs.parentElement.style.display = '';
+
+                        if (jtDrik) jtDrik.readOnly = true;
+                        if (jtPcs) jtPcs.readOnly = true;
+
+                        const jtSum = jtDynamicSum;
+
+                        // RUMUS: outputpcs = input - jtpcs (input & JT sudah dalam satuan PCS)
+                        const outputpcsVal = inputVal - jtSum;
+                        const jtdrikVal = up > 0 ? jtSum / up : 0;
+                        const outputdrikVal = up > 0 ? outputpcsVal / up : 0;
+
+                        if (jtPcs) jtPcs.value = formatNumber(Math.floor(jtSum));
+                        if (jtDrik) jtDrik.value = formatNumber(Math.max(0, Math.floor(jtdrikVal)));
+                        if (outputPcs) outputPcs.value = formatNumber(Math.max(0, Math.floor(outputpcsVal)));
+                        if (outputDrik) outputDrik.value = formatNumber(Math.max(0, Math.floor(outputdrikVal)));
 
                     } else if (proc === 'LEM' || proc === 'LEM SETENGAH JADI') {
                         sortirSection?.classList.add('hidden');
@@ -851,11 +952,9 @@
                     calculate();
                     // toggle sections exactly like original intent:
                     if ((proses.value || '').toUpperCase() === 'SORTPACKING') {
-                        sortirSection?.classList.remove('hidden');
-                        boxSection?.classList.remove('hidden'); // TAMBAHKAN INI
+                        boxSection?.classList.remove('hidden');
                     } else {
-                        sortirSection?.classList.add('hidden');
-                        boxSection?.classList.add('hidden'); // TAMBAHKAN INI
+                        boxSection?.classList.add('hidden');
                     }
                     if ((proses.value || '').toUpperCase() === 'SORTPACKING') {
                         timSection?.classList.remove('hidden');
@@ -871,6 +970,12 @@
                 });
                 // Tambahkan listener untuk BOX dan ISIBOX
                 [boxInput, isiboxInput].forEach(el => {
+                    if (!el) return;
+                    el.addEventListener('input', calculate);
+                    el.addEventListener('change', calculate);
+                });
+                // Listener untuk Karantina & OK (SORTIR CETAK)
+                [karantinaInput, okInput].forEach(el => {
                     if (!el) return;
                     el.addEventListener('input', calculate);
                     el.addEventListener('change', calculate);
@@ -1028,8 +1133,11 @@
                 // remove jt entries in clone
                 clone.querySelectorAll('.jt-container').forEach(c => c.innerHTML = '');
                 // hide dynamic sections initially
+                clone.querySelectorAll('.jt-section').forEach(s => s.classList.add('hidden'));
                 clone.querySelectorAll('.sortpacking-section').forEach(s => s.classList.add('hidden'));
+                clone.querySelectorAll('.sortircetak-section').forEach(s => s.classList.add('hidden'));
                 clone.querySelectorAll('.tim-section').forEach(t => t.classList.add('hidden'));
+                clone.querySelectorAll('.input-drik-row').forEach(r => r.style.display = '');
                 // append clone and init
                 container.appendChild(clone);
                 initRow(clone);
@@ -1068,7 +1176,7 @@
                     // We will unformat inputs which originally are numeric in your original script:
                     const checkNames = ['input[]', 'upspk[]', 'jtdrik[]', 'jtpcs[]', 'sortirpcs[]',
                         'sortirdrik[]', 'packingpcs[]', 'packingdrik[]', 'outputdrik[]',
-                        'outputpcs[]', 'qty[]'
+                        'outputpcs[]', 'qty[]', 'karantina[]', 'ok[]'
                     ];
                     // Accept also non-suffixed names if present
                     if (name && (checkNames.includes(name) || checkNames.some(n => name.startsWith(n
@@ -1121,8 +1229,6 @@
     </script>
 
     </div>
-
-
 
 </body>
 

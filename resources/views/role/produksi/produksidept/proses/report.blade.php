@@ -88,10 +88,10 @@
         }
 
         /* ══════════════════════════════════════════════════════
-                                                                               FIX: kotak search job — dulu melebar mengikuti isi chip,
-                                                                               sekarang dikunci lebarnya (300px, lihat inline style di HTML)
-                                                                               dan discroll ke samping secara internal begitu chip penuh.
-                                                                               ══════════════════════════════════════════════════════ */
+                                                                                   FIX: kotak search job — dulu melebar mengikuti isi chip,
+                                                                                   sekarang dikunci lebarnya (300px, lihat inline style di HTML)
+                                                                                   dan discroll ke samping secara internal begitu chip penuh.
+                                                                                   ══════════════════════════════════════════════════════ */
         .produksi-modern .ppx-chip-input {
             display: flex;
             align-items: center;
@@ -158,8 +158,8 @@
         }
 
         /* FIX: dropdown saran sekarang benar-benar "mengambang" (position-absolute
-                                                                               ditambahkan langsung di markup) dengan offset top yang jelas, sehingga
-                                                                               tidak lagi mendorong layout di bawahnya. */
+                                                                                   ditambahkan langsung di markup) dengan offset top yang jelas, sehingga
+                                                                                   tidak lagi mendorong layout di bawahnya. */
         .produksi-modern .ppx-suggestions {
             z-index: 1055;
             top: calc(100% + 6px);
@@ -208,8 +208,8 @@
         }
 
         /* ══════════════════════════════════════════════════════
-                                                                               KPI CARDS
-                                                                               ══════════════════════════════════════════════════════ */
+                                                                                   KPI CARDS
+                                                                                   ══════════════════════════════════════════════════════ */
         .produksi-modern .ppx-kpi-card {
             background: var(--ppx-surface);
             border-radius: var(--ppx-radius-lg);
@@ -337,10 +337,10 @@
         }
 
         /* Badge proses — sekarang SOFT (bg pastel + teks warna senada), bukan
-                                                                               solid + teks putih. Warna tetap dipilih deterministik per nama proses
-                                                                               lewat _prosesColor() di PHP (mengembalikan pasangan bg/text), dan dipakai
-                                                                               persis sama baik di baris tabel maupun di modal detail
-                                                                               (lihat 'proses_bg' & 'proses_text' pada JSON). */
+                                                                                   solid + teks putih. Warna tetap dipilih deterministik per nama proses
+                                                                                   lewat _prosesColor() di PHP (mengembalikan pasangan bg/text), dan dipakai
+                                                                                   persis sama baik di baris tabel maupun di modal detail
+                                                                                   (lihat 'proses_bg' & 'proses_text' pada JSON). */
         .produksi-modern .ppx-badge-proses {
             border-radius: 8px;
             font-size: .72rem;
@@ -874,13 +874,13 @@
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtdrik" data-value="{{ $data->jtdrik ?? 0 }}"
-                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem']) ? '0' : '1' }}">
+                                                    data-editable="{{ strtolower($data->proses ?? '') === 'lem' ? '0' : '1' }}">
                                                     {{ $data->jtdrik ? number_format($data->jtdrik, 0, ',', '.') : '0' }}
                                                 </span>
                                                 <span class="ppx-eq">=</span>
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtpcs" data-value="{{ $data->jtpcs ?? 0 }}"
-                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking']) ? '1' : '0' }}">
+                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'sortpacking']) ? '1' : '0' }}">
                                                     {{ $data->jtpcs ? number_format($data->jtpcs, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
@@ -1541,9 +1541,10 @@
                     if (r.editable) {
                         let isEditableVal = '1';
                         if (r.field === 'jtdrik') {
-                            isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem'].includes(d.proses.toLowerCase()) ? '0' : '1';
+                            isEditableVal = d.proses.toLowerCase() === 'lem' ? '0' : '1';
                         } else if (r.field === 'jtpcs') {
-                            isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking'].includes(d.proses.toLowerCase()) ? '1' : '0';
+                            isEditableVal = ['lem', 'sortpacking'].includes(d.proses.toLowerCase()) ? '1' :
+                                '0';
                         }
 
                         const isNumeric = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift', 'qty'].includes(r
