@@ -176,13 +176,17 @@ class SpreadsheetController extends Controller
                 $currentJob = trim($validated['job'][$i] ?? '');
                 $currentOperator = trim($validated['operator'][$i] ?? '');
                 $currentShift = trim($validated['shift'][$i] ?? '');
+                // tambah tanggal
+                $currentTanggal = trim($validated['tanggal'][$i] ?? '');
 
                 if (! empty($currentJob)) {
-                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentShift;
+                    // tambah tanggal
+                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentShift.'|'.$currentTanggal;
 
                     // A. Cek ketik ganda di dalam form yang sedang di-submit
                     if (in_array($uniqueKey, $processedKeys)) {
-                        $duplikatList[] = "Job <b>{$currentJob}</b> (Operator: {$currentOperator}, Shift: {$currentShift}) - <i>Ketik ganda di form</i>";
+                        // tambah tanggal
+                        $duplikatList[] = "Job <b>{$currentJob}</b> (Operator: {$currentOperator}, Shift: {$currentShift}, Tanggal: ".Carbon::parse($currentTanggal)->format('d/M/y').') - <i>Sudah ada di database</i>';
 
                         continue;
                     }
@@ -192,10 +196,12 @@ class SpreadsheetController extends Controller
                     $existsInDb = ProsesProduksi::where('job', $currentJob)
                         ->where('operator', $currentOperator)
                         ->where('shift', $currentShift)
+                        // tambah tanggal
+                        ->where('tanggal', $currentTanggal)
                         ->exists();
 
                     if ($existsInDb) {
-                        $duplikatList[] = "Job <b>{$currentJob}</b> (Operator: {$currentOperator}, Shift: {$currentShift}) - <i>Sudah ada di database</i>";
+                        $duplikatList[] = "Job <b>{$currentJob}</b> (Operator: {$currentOperator}, Shift: {$currentShift}, Tanggal: {$currentTanggal}) - <i>Sudah ada di database</i>";
 
                         continue;
                     }

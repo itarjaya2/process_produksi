@@ -1397,8 +1397,7 @@
                             icon: 'bx-layer',
                             label: 'Qty',
                             val: d.qty,
-                            field: 'qty',
-                            editable: true
+                            field: 'qty'
                         },
                     ]
                 },
@@ -1567,7 +1566,7 @@
                         valHtml =
                             `<span class="badge fw-bold text-uppercase" style="background:${badgeBg}; color:${badgeText}; border-radius:8px; padding:.38em .75em; font-size:.72rem; letter-spacing:.02em;">${r.val}</span>`;
                     } else {
-                        const formattedVal = (r.field && ['outputpcs', 'outputdrik',
+                        const formattedVal = (r.field && ['qty', 'outputpcs', 'outputdrik',
                                 'total_pengerjaan_drik', 'total_pengerjaan_pcs'
                             ].includes(r.field)) ?
                             parseFloat(r.val || 0).toLocaleString('id-ID', {

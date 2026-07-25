@@ -146,29 +146,38 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
                 $currentJob = trim($validated['job'][$i] ?? '');
                 $currentOperator = trim($validated['operator'][$i] ?? '');
                 $currentShift = trim($validated['shift'][$i] ?? '');
+                // tambah tanggal
+                $currentTanggal = trim($validated['tanggal'][$i] ?? '');
 
                 // 2. LOGIKA FILTER DUPLIKAT (JOB + OPERATOR + SHIFT)
                 // =================================================================
                 // Jika job terisi, kita lakukan validasi duplikat
                 if (! empty($currentJob)) {
                     // Buat "Kunci Unik" gabungan dari 3 kolom tersebut
-                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentShift;
+                    // tambah tanggal
+                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentShift.'|'.$currentTanggal;
 
                     // A. Cek apakah kunci ini sudah ada DI DALAM FORM SUBMIT yang sama?
+                    // tambah tanggal
                     if (in_array($uniqueKey, $processedKeys)) {
-                        Log::warning("Duplikat input form terdeteksi (Baris dilewati): Job {$currentJob}, Op {$currentOperator}, Shift {$currentShift}");
+                        Log::warning(
+                            "Duplikat input form terdeteksi (Baris dilewati): Job {$currentJob}, Op {$currentOperator}, Shift {$currentShift}, Tanggal {$currentTanggal}"
+                        );
 
                         continue; // Lewati baris ini, langsung lanjut ke perulangan $i berikutnya
                     }
 
                     // B. Cek apakah kombinasi ini SUDAH ADA DI DATABASE MySQL?
+                    // tambah tanggal
                     $existsInDb = ProsesProduksi::where('job', $currentJob)
                         ->where('operator', $currentOperator)
                         ->where('shift', $currentShift)
+                        ->where('tanggal', $currentTanggal)
                         ->exists();
 
+                    // tambah tanggal
                     if ($existsInDb) {
-                        Log::warning("Data sudah ada di database (Baris dilewati): Job {$currentJob}, Op {$currentOperator}, Shift {$currentShift}");
+                        Log::warning("Data sudah ada di database (Baris dilewati): Job {$currentJob}, Op {$currentOperator}, Shift {$currentShift}, Tanggal {$currentTanggal}");
 
                         continue; // Lewati baris ini agar tidak masuk DB maupun Google Sheets
                     }

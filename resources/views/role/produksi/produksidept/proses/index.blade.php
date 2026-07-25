@@ -1865,8 +1865,7 @@
                                 icon: 'bx-layer',
                                 label: 'Qty',
                                 val: d.qty,
-                                field: 'qty',
-                                editable: true
+                                field: 'qty'
                             },
                         ]
                     },
@@ -2029,7 +2028,7 @@
                             valHtml =
                                 `<span class="inline-edit-cell" data-id="${d.id}" data-field="${r.field}" data-value="${r.val}" data-editable="${isEditableVal}">${formattedVal}</span>`;
                         } else {
-                            const formattedVal = (r.field && ['outputpcs', 'outputdrik',
+                            const formattedVal = (r.field && ['qty', 'outputpcs', 'outputdrik',
                                     'total_pengerjaan_drik', 'total_pengerjaan_pcs'
                                 ].includes(r.field)) ?
                                 parseFloat(r.val || 0).toLocaleString('id-ID', {
