@@ -1019,13 +1019,13 @@
             }
 
             /* ══════════════════════════════════════════════════════
-                                                                                                                       FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
-                                                                                                                       `left` kolom-2 di-set lewat JS (updateStickyOffsets)
-                                                                                                                       karena lebar kolom Job bisa berubah-ubah isinya —
-                                                                                                                       kalau di-hardcode di CSS, begitu isi Job lebih
-                                                                                                                       panjang/pendek, kolom Produk akan salah posisi
-                                                                                                                       (menutupi Job atau ada gap kosong).
-                                                                                                                       ══════════════════════════════════════════════════════ */
+                                                                                                                                       FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
+                                                                                                                                       `left` kolom-2 di-set lewat JS (updateStickyOffsets)
+                                                                                                                                       karena lebar kolom Job bisa berubah-ubah isinya —
+                                                                                                                                       kalau di-hardcode di CSS, begitu isi Job lebih
+                                                                                                                                       panjang/pendek, kolom Produk akan salah posisi
+                                                                                                                                       (menutupi Job atau ada gap kosong).
+                                                                                                                                       ══════════════════════════════════════════════════════ */
             .produksi-modern .ppx-sticky-col {
                 position: sticky;
                 z-index: 6;
@@ -1864,8 +1864,7 @@
                             {
                                 icon: 'bx-layer',
                                 label: 'Qty',
-                                val: d.qty,
-                                field: 'qty'
+                                val: d.qty
                             },
                         ]
                     },

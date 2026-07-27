@@ -11,6 +11,7 @@ use App\Models\Prodev;
 use App\Models\ProsesProduksi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -176,17 +177,15 @@ class SpreadsheetController extends Controller
                 $currentJob = trim($validated['job'][$i] ?? '');
                 $currentOperator = trim($validated['operator'][$i] ?? '');
                 $currentShift = trim($validated['shift'][$i] ?? '');
-                // tambah tanggal
                 $currentTanggal = trim($validated['tanggal'][$i] ?? '');
+                $currentProses = trim($validated['proses'][$i] ?? '');
 
                 if (! empty($currentJob)) {
-                    // tambah tanggal
-                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentShift.'|'.$currentTanggal;
+                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentProses.'|'.$currentShift.'|'.$currentTanggal;
 
                     // A. Cek ketik ganda di dalam form yang sedang di-submit
                     if (in_array($uniqueKey, $processedKeys)) {
-                        // tambah tanggal
-                        $duplikatList[] = "Job <b>{$currentJob}</b> (Operator: {$currentOperator}, Shift: {$currentShift}, Tanggal: ".Carbon::parse($currentTanggal)->format('d/M/y').') - <i>Sudah ada di database</i>';
+                        $duplikatList[] = "Job <b>{$currentJob}</b> (Tanggal: {$currentTanggal}, Proses: {$currentProses}, (Operator: {$currentOperator}, Shift: {$currentShift}) - <i>Ketik ganda di form</i>";
 
                         continue;
                     }
@@ -196,12 +195,12 @@ class SpreadsheetController extends Controller
                     $existsInDb = ProsesProduksi::where('job', $currentJob)
                         ->where('operator', $currentOperator)
                         ->where('shift', $currentShift)
-                        // tambah tanggal
                         ->where('tanggal', $currentTanggal)
+                        ->where('proses', $currentProses)
                         ->exists();
 
                     if ($existsInDb) {
-                        $duplikatList[] = "Job <b>{$currentJob}</b> (Operator: {$currentOperator}, Shift: {$currentShift}, Tanggal: {$currentTanggal}) - <i>Sudah ada di database</i>";
+                        $duplikatList[] = "Job <b>{$currentJob}</b> (Tanggal: {$currentTanggal},Proses: {$currentProses},(Operator: {$currentOperator}, Shift: {$currentShift}) - <i>Sudah ada di database</i>";
 
                         continue;
                     }
@@ -222,16 +221,79 @@ class SpreadsheetController extends Controller
             return back()->withErrors($e->errors())->withInput();
         }
 
-        // 2. Kirim data ke Job untuk diproses di background (Jika aman 100% dari duplikat)
+        // 2. Simpan langsung ke database
         try {
-            // Kita hanya perlu melempar data yang sudah divalidasi
-            ProcessSpreadsheetAndDbJob::dispatch($validated);
+            $dbInsertData = [];
+            $now = Carbon::now();
 
-            // 3. Langsung beri respon ke user (JANGAN DITUNGGU)
-            return back()->with('success', 'Berhasil! '.$rowsCount.' baris data berhasil terkirim. Ini mungkin perlu beberapa menit untuk tampil di spreadsheet.');
+            for ($i = 0; $i < $rowsCount; $i++) {
+                $dbInsertData[] = [
+                    'proses' => $validated['proses'][$i] ?? '',
+                    'job' => $validated['job'][$i] ?? '',
+                    'product' => $validated['product'][$i] ?? '',
+                    'designno' => $validated['designno'][$i] ?? '',
+                    'po' => $validated['po'][$i] ?? '',
+                    'qty' => $validated['qty'][$i] ?? '',
+                    'pengawas' => $validated['pengawas'][$i] ?? '',
+                    'shiftpengawas' => $validated['shiftpengawas'][$i] ?? '',
+                    'upspk' => $validated['upspk'][$i] ?? '',
+                    'tanggal' => $validated['tanggal'][$i] ?? '',
+                    'mesin' => $validated['mesin'][$i] ?? '',
+                    'vendormat' => $validated['vendormat'][$i] ?? '',
+                    'shift' => $validated['shift'][$i] ?? '',
+                    'palet' => $validated['palet'][$i] ?? '',
+                    'set' => $validated['set'][$i] ?? '',
+                    'operator' => $validated['operator'][$i] ?? '',
+                    'jumlahtim' => $validated['jumlahtim'][$i] ?? '',
+                    'run' => $validated['run'][$i] ?? '',
+                    'finish' => $validated['finish'][$i] ?? '',
+                    'break' => $validated['break'][$i] ?? '',
+                    'totaljam' => $validated['totaljam'][$i] ?? '',
+                    'input' => $validated['input'][$i] ?? '',
+                    'ket' => $validated['ket'][$i] ?? '',
+                    'jtdrik' => $validated['jtdrik'][$i] ?? '',
+                    'target' => $validated['target'][$i] ?? '',
+                    'karantina' => $validated['karantina'][$i] ?? '',
+                    'outputdrik' => $validated['outputdrik'][$i] ?? '',
+                    'type' => $validated['type'][$i] ?? '',
+                    'toleransi' => $validated['toleransi'][$i] ?? '',
+                    'ok' => $validated['ok'][$i] ?? '',
+                    'jtpcs' => $validated['jtpcs'][$i] ?? '',
+                    // SORTPACKING fields
+                    'warna' => $validated['warna'][$i] ?? '',
+                    'banjir' => $validated['banjir'][$i] ?? '',
+                    'beset' => $validated['beset'][$i] ?? '',
+                    'notok' => $validated['notok'][$i] ?? '',
+                    'powder' => $validated['powder'][$i] ?? '',
+                    'wb' => $validated['wb'][$i] ?? '',
+                    'uvkasar' => $validated['uvkasar'][$i] ?? '',
+                    'uvmbleset' => $validated['uvmbleset'][$i] ?? '',
+                    'tidakuv' => $validated['tidakuv'][$i] ?? '',
+                    'hotprint' => $validated['hotprint'][$i] ?? '',
+                    'laminating' => $validated['laminating'][$i] ?? '',
+                    'laminasikurang' => $validated['laminasikurang'][$i] ?? '',
+                    'laminasi' => $validated['laminasi'][$i] ?? '',
+                    'tidakpresisi' => $validated['tidakpresisi'][$i] ?? '',
+                    'pecah' => $validated['pecah'][$i] ?? '',
+                    'emboss' => $validated['emboss'][$i] ?? '',
+                    'porforasi' => $validated['porforasi'][$i] ?? '',
+                    'sobek' => $validated['sobek'][$i] ?? '',
+                    'lengket' => $validated['lengket'][$i] ?? '',
+                    'll' => $validated['ll'][$i] ?? '',
+                    'noteoperator' => $validated['noteoperator'][$i] ?? '',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            if (! empty($dbInsertData)) {
+                ProsesProduksi::insert($dbInsertData);
+            }
+
+            return back()->with('success', 'Berhasil! '.$rowsCount.' baris data berhasil disimpan.');
 
         } catch (\Exception $e) {
-            Log::error('Gagal dispatch job: '.$e->getMessage());
+            Log::error('Gagal menyimpan data proses produksi: '.$e->getMessage());
 
             return back()->with('error', 'Terjadi kesalahan internal saat memproses request.');
         }
@@ -291,6 +353,7 @@ class SpreadsheetController extends Controller
         return $record;
     }
 
+    // list data proses
     // list data proses
     public function indexdata(Request $request)
     {
@@ -781,6 +844,41 @@ class SpreadsheetController extends Controller
         return view('role.produksi.produksidept.proses.report', compact('rangkuman', 'detailProses', 'job_id', 'docket', 'product', 'total', 'jobsToQuery'));
     }
 
+    public function destroy(Request $request, $id)
+    {
+        $record = ProsesProduksi::findOrFail($id);
+
+        // Snapshot lengkap data sebelum dihapus — disimpan sebagai old_value di
+        // Activity Log, supaya walau baris aslinya sudah hilang dari tabel
+        // proses_produksis, riwayatnya tetap bisa ditelusuri.
+        $snapshot = Arr::only($record->toArray(), [
+            'job', 'product', 'designno', 'po', 'qty', 'proses', 'mesin',
+            'operator', 'shift', 'tanggal', 'set', 'run', 'finish', 'break',
+            'upspk', 'input', 'jtdrik', 'jtpcs', 'outputdrik', 'outputpcs',
+        ]);
+
+        DB::transaction(function () use ($record, $snapshot) {
+            ActivityLog::create([
+                'proses_produksi_id' => $record->id,
+                'user_id' => auth()->id() ?? 1,
+                'field_name' => 'DELETED',
+                'old_value' => json_encode($snapshot),
+                'new_value' => null,
+            ]);
+
+            $record->delete();
+        });
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Data berhasil dihapus.',
+            ]);
+        }
+
+        return back()->with('success', 'Data berhasil dihapus.');
+    }
+
     public function inlineUpdate(Request $request)
     {
         $allowedFields = ['input', 'jtdrik', 'jtpcs', 'upspk', 'shift', 'operator', 'set', 'run', 'finish', 'tanggal', 'qty', 'mesin'];
@@ -789,8 +887,6 @@ class SpreadsheetController extends Controller
         $valueRules = 'required';
         if (in_array($request->field, $stringFields, true)) {
             $valueRules = 'nullable|string';
-        } elseif ($request->field === 'shift') {
-            $valueRules = 'nullable|numeric';
         } else {
             $valueRules = 'required|numeric';
         }
@@ -903,49 +999,38 @@ class SpreadsheetController extends Controller
             }
         }
 
-        if ($field === 'jtdrik' && in_array($prosesName, ['lem', 'lem setengah jadi', 'sortir lem'], true)) {
+        if ($field === 'jtdrik' && $prosesName === 'lem') {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT Drik untuk proses '.strtoupper($prosesName).' tidak dapat diinput secara inline.',
+                'message' => 'Kolom JT Drik untuk proses LEM tidak dapat diinput secara inline.',
             ], 422);
         }
 
-        if ($field === 'jtpcs' && ! in_array($prosesName, ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking'], true)) {
+        if ($field === 'jtpcs' && ! in_array($prosesName, ['lem', 'sortpacking'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT PCS hanya dapat diubah untuk proses LEM, LEM SETENGAH JADI, SORTIR LEM, dan SORTPACKING.',
+                'message' => 'Kolom JT PCS hanya dapat diubah untuk proses LEM dan SORTPACKING.',
             ], 422);
         }
 
-        // Validation: JT Drik/PCS cannot be greater than Input
-        if (in_array($prosesName, ['lem', 'lem setengah jadi', 'sortir lem'], true)) {
-            if ($field === 'jtpcs' && (float) $value > $record->input) {
+        if ($prosesName === 'lem' && $field === 'jtpcs') {
+            $saveField = 'input';
+        }
+
+        // Validation: JT Drik cannot be greater than Input
+        if ($prosesName !== 'lem' && ! in_array($field, $stringFields, true)) {
+            $numericValue = (float) $value;
+            if ($field === 'jtdrik' && $numericValue > $record->input) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Kolom JT PCS tidak boleh lebih besar dari Input.',
+                    'message' => 'Kolom JT Drik tidak boleh lebih besar dari Input.',
                 ], 422);
             }
-            if ($field === 'input' && $record->jtpcs > (float) $value) {
+            if ($field === 'input' && $record->jtdrik > $numericValue) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Input tidak boleh lebih kecil dari JT PCS.',
+                    'message' => 'Input tidak boleh lebih kecil dari JT Drik.',
                 ], 422);
-            }
-        } else {
-            if (! in_array($field, $stringFields, true)) {
-                $numericValue = (float) $value;
-                if ($field === 'jtdrik' && $numericValue > $record->input) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Kolom JT Drik tidak boleh lebih besar dari Input.',
-                    ], 422);
-                }
-                if ($field === 'input' && $record->jtdrik > $numericValue) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Input tidak boleh lebih kecil dari JT Drik.',
-                    ], 422);
-                }
             }
         }
 
@@ -955,7 +1040,7 @@ class SpreadsheetController extends Controller
         // 2. Siapkan nilai baru yang sudah diformat sesuai tipe datanya
         $formattedNewValue = in_array($saveField, $stringFields, true)
             ? (empty($value) || $value === '-' ? null : $value)
-            : (($saveField === 'shift' && (empty($value) || $value === '-')) ? null : (float) $value);
+            : (float) $value;
 
         DB::transaction(function () use ($record, $saveField, $formattedNewValue, $oldValue) {
             // Update data utama
@@ -998,7 +1083,7 @@ class SpreadsheetController extends Controller
                 'jtdrik' => (float) $record->jtdrik,
                 'jtpcs' => (float) $record->jtpcs,
                 'upspk' => (float) $record->upspk,
-                'shift' => $record->shift !== null ? (float) $record->shift : null,
+                'shift' => (float) $record->shift,
                 'qty' => (float) $record->qty,
                 'operator' => $record->operator,
                 'mesin' => $record->mesin,
@@ -1094,7 +1179,6 @@ class SpreadsheetController extends Controller
         $filterTanggal = $request->get('tanggal');
         $filterDocket = $request->get('designno');
         $filterProduct = $request->get('product');
-        $filterShift = $request->get('shift');
 
         if (! empty($filterId)) {
             $query->where('id', $filterId);
@@ -1151,9 +1235,6 @@ class SpreadsheetController extends Controller
             if (! empty($productsList)) {
                 $query->whereIn('product', $productsList);
             }
-        }
-        if ($filterShift !== null && $filterShift !== '') {
-            $query->where('shift', $filterShift);
         }
         if (! empty($startDate) && ! empty($endDate)) {
             $query->whereBetween('tanggal', [$startDate, $endDate]);
@@ -1216,7 +1297,7 @@ class SpreadsheetController extends Controller
         $firstByTanggal = fn ($collection) => $collection->sortBy('tanggal')->first();
         $breakLabel = fn ($item) => $item ? ((strtoupper((string) $item->break) === 'TRUE' || $item->break == 1) ? 'YA' : 'TIDAK') : '-';
         $tglFmt = fn ($item) => $item && $item->tanggal ? Carbon::parse($item->tanggal)->format('d-m-Y') : '-';
-        $jamFmt = fn ($val) => $val ? Carbon::parse($val)->timezone('Asia/Jakarta')->format('H:i') : '-';
+        $jamFmt = fn ($val) => $val ? Carbon::parse($val)->format('H:i') : '-';
 
         $row = [
             'JOB' => $jobId,

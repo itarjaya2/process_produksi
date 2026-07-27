@@ -137,59 +137,11 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
             $dataBySheet = []; // Untuk mengelompokkan data per sheet
             $now = Carbon::now();
 
-            // 1. BUAT ARRAY PENAMPUNG KUNCI UNTUK CEK DUPLIKAT DI DALAM BATCH
-            // =================================================================
-            $processedKeys = [];
-
             for ($i = 0; $i < $rowsCount; $i++) {
-                // Ambil nilai job, operator, dan shift untuk baris ini
-                $currentJob = trim($validated['job'][$i] ?? '');
-                $currentOperator = trim($validated['operator'][$i] ?? '');
-                $currentShift = trim($validated['shift'][$i] ?? '');
-                // tambah tanggal
-                $currentTanggal = trim($validated['tanggal'][$i] ?? '');
-
-                // 2. LOGIKA FILTER DUPLIKAT (JOB + OPERATOR + SHIFT)
-                // =================================================================
-                // Jika job terisi, kita lakukan validasi duplikat
-                if (! empty($currentJob)) {
-                    // Buat "Kunci Unik" gabungan dari 3 kolom tersebut
-                    // tambah tanggal
-                    $uniqueKey = $currentJob.'|'.$currentOperator.'|'.$currentShift.'|'.$currentTanggal;
-
-                    // A. Cek apakah kunci ini sudah ada DI DALAM FORM SUBMIT yang sama?
-                    // tambah tanggal
-                    if (in_array($uniqueKey, $processedKeys)) {
-                        Log::warning(
-                            "Duplikat input form terdeteksi (Baris dilewati): Job {$currentJob}, Op {$currentOperator}, Shift {$currentShift}, Tanggal {$currentTanggal}"
-                        );
-
-                        continue; // Lewati baris ini, langsung lanjut ke perulangan $i berikutnya
-                    }
-
-                    // B. Cek apakah kombinasi ini SUDAH ADA DI DATABASE MySQL?
-                    // tambah tanggal
-                    $existsInDb = ProsesProduksi::where('job', $currentJob)
-                        ->where('operator', $currentOperator)
-                        ->where('shift', $currentShift)
-                        ->where('tanggal', $currentTanggal)
-                        ->exists();
-
-                    // tambah tanggal
-                    if ($existsInDb) {
-                        Log::warning("Data sudah ada di database (Baris dilewati): Job {$currentJob}, Op {$currentOperator}, Shift {$currentShift}, Tanggal {$currentTanggal}");
-
-                        continue; // Lewati baris ini agar tidak masuk DB maupun Google Sheets
-                    }
-
-                    // Jika lolos kedua verif di atas, masukkan kunci ini ke daftar "sudah diproses"
-                    $processedKeys[] = $uniqueKey;
-                }
-
                 // Build row data (LENGKAP SEMUA FIELD)
                 $rowData = [
                     'proses' => $validated['proses'][$i] ?? '',
-                    'job' => $currentJob, // job
+                    'job' => $validated['job'][$i] ?? '',
                     'product' => $validated['product'][$i] ?? '',
                     'designno' => $validated['designno'][$i] ?? '',
                     'po' => $validated['po'][$i] ?? '',
@@ -200,10 +152,10 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
                     'tanggal' => $validated['tanggal'][$i] ?? '',
                     'mesin' => $validated['mesin'][$i] ?? '',
                     'vendormat' => $validated['vendormat'][$i] ?? '',
-                    'shift' => $currentShift, // shift
+                    'shift' => $validated['shift'][$i] ?? '',
                     'palet' => $validated['palet'][$i] ?? '',
                     'set' => $validated['set'][$i] ?? '',
-                    'operator' => $currentOperator, // operator
+                    'operator' => $validated['operator'][$i] ?? '',
                     'jumlahtim' => $validated['jumlahtim'][$i] ?? '',
                     'run' => $validated['run'][$i] ?? '',
                     'finish' => $validated['finish'][$i] ?? '',
@@ -257,11 +209,10 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
             if (! empty($dbInsertData)) {
                 ProsesProduksi::insert($dbInsertData); // Jauh lebih cepat!
             }
-            // spreadsheet off sementara (buka)
 
-            // // --- OPTIMASI 2: BATCH GOOGLE SHEETS UPDATE ---
+            // --- OPTIMASI 2: BATCH GOOGLE SHEETS UPDATE ---
 
-            // // Helper $getNextRowForSheet (milik Anda)
+            // Helper $getNextRowForSheet (milik Anda)
             // $sheetRowCounters = [];
             // $getNextRowForSheet = function ($sheetName) use ($service, $spreadsheetId, &$sheetRowCounters) {
             //     if (isset($sheetRowCounters[$sheetName])) {
@@ -313,7 +264,6 @@ class ProcessSpreadsheetAndDbJob implements ShouldQueue
             //     $service->spreadsheets_values->batchUpdate($spreadsheetId, $batchUpdateRequest);
             // }
 
-            // off spreadsheet (tutup sementara)
             Log::info('ProcessSpreadsheetAndDbJob sukses memproses '.$rowsCount.' baris.');
 
         } catch (\Exception $e) {
