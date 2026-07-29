@@ -19,11 +19,12 @@ class ExportController extends Controller
         $processOrder = [
             'PRINT', 'SORTIR CETAK', 'WATERBASE', 'HOCK', 'HOTPRINT',
             'LAMINASI', 'LAMINATING', 'EMBOSS', 'DIECUT', 'CUTTING',
-            'LEM SETENGAH JADI', 'LEM', 'SORTIR LEM',
+            'LEM',
         ];
 
         // Label kolom yang ditampilkan (kalau beda dengan nama proses di database)
         $processLabel = [
+            'PRINT' => 'CETAK',
             'SORTIR CETAK' => 'SORTIRCETAK',
             'LEM SETENGAH JADI' => 'HALF GLUE',
             'LEM' => 'GLUED',
@@ -41,23 +42,36 @@ class ExportController extends Controller
             $label = $processLabel[$prosesName] ?? $prosesName;
             if ($i === 0) {
                 // Kolom pertama (PRINT) dapat tambahan kolom tanggal di depannya
-                $headers[] = 'TGL PRINT (JOB PERTAMA)';
+                $headers[] = 'TGL START';
             }
-            $headers[] = 'TOTAL JAM '.$label;
-            $headers[] = 'OUTPUT DRIK '.$label;
-            $headers[] = 'OUTPUT PCS '.$label;
-            $headers[] = 'JT DRIK '.$label;
-            $headers[] = 'JT PCS '.$label;
+            if ($prosesName === 'DIECUT') {
+                $headers[] = 'START DIECUT';
+            }
+            if ($prosesName === 'PRINT') {
+                $headers[] = 'OUTPUT '.$label;
+            } elseif ($prosesName === 'SORTIR CETAK') {
+                $headers[] = 'JT SORTIR CETAK';
+                $headers[] = '% JT CETAK';
+            } elseif ($prosesName === 'CUTTING') {
+                $headers[] = 'OUTPUT '.$label;
+            } else {
+                // $headers[] = 'OUTPUT PCS '.$label;
+                $headers[] = 'OUTPUT '.$label;
+                // $headers[] = 'OUTPUT PCS '.$label;
+                $headers[] = 'JT '.$label;
+                $headers[] = '% JT '.$label;
+            }
         }
 
-        $headers[] = 'TANGGAL SORTPACKING (JOB PERTAMA)';
-        $headers[] = 'TOTAL JAM SORTPACKING';
-        $headers[] = 'OUTPUT DRIK SORTIR';
-        $headers[] = 'OUTPUT PCS SORTIR';
-        $headers[] = 'JT DRIK SORTIR';
-        $headers[] = 'JT PCS SORTIR';
-        $headers[] = 'OUTPUT DRIK PACKING';
-        $headers[] = 'OUTPUT PCS PACKING';
+        $headers[] = 'OUTPUT SORTIR';
+        $headers[] = 'JT SORTIR';
+        $headers[] = '% JT SORT';
+        $headers[] = 'OUTPUT PACKING';
+        $headers[] = 'TGL FINISH';
+        $headers[] = 'JT ALL PROSES';
+        $headers[] = '% JT ALL PROSES';
+        $headers[] = 'INPUT CETAK';
+        $headers[] = 'TOTAL KIRIM';
 
         $sheet->fromArray($headers, null, 'A1');
 
@@ -161,6 +175,25 @@ class ExportController extends Controller
                 ->sortBy('tanggal')
                 ->first();
 
+            $diecutFirstDate = $records
+                ->filter(fn ($item) => strtoupper(trim((string) $item->proses)) === 'DIECUT' && ! empty($item->tanggal))
+                ->sortBy('tanggal')
+                ->first();
+
+            $lastDate = $records
+                ->filter(fn ($item) => ! empty($item->tanggal))
+                ->sortByDesc('tanggal')
+                ->first();
+
+            $inputCetak = $records
+                ->filter(fn ($item) => strtoupper(trim((string) $item->proses)) === 'PRINT')
+                ->sum(function ($r) {
+                    $itemInput = (float) str_replace('.', '', (string) ($r->input ?? 0));
+                    $itemUpspk = (float) str_replace('.', '', (string) ($r->upspk ?? 0));
+
+                    return $itemInput * $itemUpspk;
+                });
+
             // ===================== TULIS BARIS =====================
             $col = 'A';
 
@@ -175,6 +208,8 @@ class ExportController extends Controller
             $sheet->setCellValue($col.$row, $firstRecord->qty ?? 0);
             $col++;
 
+            $totalJtAllProses = 0;
+
             foreach ($processOrder as $i => $prosesName) {
                 if ($i === 0) {
                     $sheet->setCellValue($col.$row, $printFirstDate && $printFirstDate->tanggal
@@ -183,37 +218,66 @@ class ExportController extends Controller
                     $col++;
                 }
 
+                if ($prosesName === 'DIECUT') {
+                    $sheet->setCellValue($col.$row, $diecutFirstDate && $diecutFirstDate->tanggal
+                        ? Carbon::parse($diecutFirstDate->tanggal)->format('d-m-Y')
+                        : '-');
+                    $col++;
+                }
+
                 $data = $prosesData[$prosesName];
 
-                $sheet->setCellValue($col.$row, round($data['jam'], 2));
-                $col++;
-                $sheet->setCellValue($col.$row, round($data['output_drik'], 0));
-                $col++;
-                $sheet->setCellValue($col.$row, round($data['output_pcs'], 0));
-                $col++;
-                $sheet->setCellValue($col.$row, round($data['jt_drik'], 0));
-                $col++;
-                $sheet->setCellValue($col.$row, round($data['jt_pcs'], 0));
-                $col++;
+                if ($prosesName === 'PRINT') {
+                    $sheet->setCellValue($col.$row, round($data['output_drik'], 0));
+                    $col++;
+                } elseif ($prosesName === 'SORTIR CETAK') {
+                    $val = (float) ($data['jt_drik'] ?? 0);
+                    $totalJtAllProses += $val;
+                    $sheet->setCellValue($col.$row, round($val, 0));
+                    $col++;
+                    $sheet->setCellValue($col.$row, round(0));
+                    $col++;
+                } elseif ($prosesName === 'CUTTING') {
+                    $sheet->setCellValue($col.$row, round($data['output_drik'], 0));
+                    $col++;
+                } else {
+                    $sheet->setCellValue($col.$row, round($data['output_drik'], 0));
+                    $col++;
+                    if ($prosesName === 'HOTPRINT') {
+                        $val = (float) ($data['jt_pcs'] ?? 0);
+                        $totalJtAllProses += $val;
+                        $sheet->setCellValue($col.$row, round($val, 0));
+                    } else {
+                        $val = (float) ($data['jt_drik'] ?? 0);
+                        $totalJtAllProses += $val;
+                        $sheet->setCellValue($col.$row, round($val, 0));
+                    }
+                    $col++;
+                    $sheet->setCellValue($col.$row, round(0));
+                    $col++;
+                }
             }
 
-            $sheet->setCellValue($col.$row, $sortpackingFirstDate && $sortpackingFirstDate->tanggal
-                ? Carbon::parse($sortpackingFirstDate->tanggal)->format('d-m-Y')
-                : '-');
-            $col++;
-            $sheet->setCellValue($col.$row, round($sortpackingJam, 2));
-            $col++;
             $sheet->setCellValue($col.$row, round($sortirOutputDrik, 2));
             $col++;
-            $sheet->setCellValue($col.$row, round($sortirOutputPcs, 0));
-            $col++;
-            $sheet->setCellValue($col.$row, round($sortirJtDrik, 2));
-            $col++;
+            $totalJtAllProses += (float) $sortirJtPcs;
             $sheet->setCellValue($col.$row, round($sortirJtPcs, 0));
+            $col++;
+            $sheet->setCellValue($col.$row, round(0));
             $col++;
             $sheet->setCellValue($col.$row, round($packingOutputDrik, 2));
             $col++;
-            $sheet->setCellValue($col.$row, round($packingOutputPcs, 0));
+            $sheet->setCellValue($col.$row, $lastDate && $lastDate->tanggal
+                ? Carbon::parse($lastDate->tanggal)->format('d-m-Y')
+                : '-');
+            $col++;
+            $sheet->setCellValue($col.$row, round($totalJtAllProses, 0));
+            $col++;
+            $sheet->setCellValue($col.$row, round(0));
+            $col++;
+            $sheet->setCellValue($col.$row, round($inputCetak, 0));
+            $col++;
+            $sheet->setCellValue($col.$row, round(0));
 
             $row++;
         }
