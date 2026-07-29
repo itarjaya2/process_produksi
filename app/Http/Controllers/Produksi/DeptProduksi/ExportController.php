@@ -27,7 +27,7 @@ class ExportController extends Controller
             'PRINT' => 'CETAK',
             'SORTIR CETAK' => 'SORTIRCETAK',
             'LEM SETENGAH JADI' => 'HALF GLUE',
-            'LEM' => 'GLUED',
+            'LEM' => 'LEM',
             'SORTIR LEM' => 'SORTIR GLUE',
         ];
 
@@ -36,7 +36,7 @@ class ExportController extends Controller
         $sheet->setTitle('Summary Production');
 
         // ===================== HEADER =====================
-        $headers = ['JOB', 'PRODUCT', 'DOCKET', 'PO', 'QTY'];
+        $headers = ['', 'JOB', 'CUST', 'PRODUCT', 'DOCKET', 'PO', 'QTY ORDER'];
 
         foreach ($processOrder as $i => $prosesName) {
             $label = $processLabel[$prosesName] ?? $prosesName;
@@ -202,7 +202,11 @@ class ExportController extends Controller
             // ===================== TULIS BARIS =====================
             $col = 'A';
 
+            $sheet->setCellValue($col.$row, '');
+            $col++;
             $sheet->setCellValue($col.$row, $job);
+            $col++;
+            $sheet->setCellValue($col.$row, ''); // CUSTOMER
             $col++;
             $sheet->setCellValue($col.$row, $firstRecord->product ?? '-');
             $col++;
