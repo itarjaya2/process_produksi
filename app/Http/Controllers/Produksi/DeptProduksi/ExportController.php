@@ -107,7 +107,12 @@ class ExportController extends Controller
 
             foreach ($processOrder as $prosesName) {
                 $filtered = $records->filter(function ($item) use ($prosesName) {
-                    return strtoupper(trim((string) $item->proses)) === $prosesName;
+                    $p = strtoupper(trim((string) $item->proses));
+                    if ($prosesName === 'SORTIR CETAK') {
+                        return $p === 'SORTIR CETAK' || $p === 'SORTIRCETAK';
+                    }
+
+                    return $p === $prosesName;
                 });
 
                 $prosesData[$prosesName] = [
@@ -228,27 +233,27 @@ class ExportController extends Controller
                 $data = $prosesData[$prosesName];
 
                 if ($prosesName === 'PRINT') {
-                    $sheet->setCellValue($col.$row, round($data['output_drik'], 0));
+                    $sheet->setCellValue($col.$row, round($data['output_pcs'], 0));
                     $col++;
                 } elseif ($prosesName === 'SORTIR CETAK') {
-                    $val = (float) ($data['jt_drik'] ?? 0);
+                    $val = (float) ($data['jt_pcs'] ?? 0);
                     $totalJtAllProses += $val;
                     $sheet->setCellValue($col.$row, round($val, 0));
                     $col++;
                     $sheet->setCellValue($col.$row, round(0));
                     $col++;
                 } elseif ($prosesName === 'CUTTING') {
-                    $sheet->setCellValue($col.$row, round($data['output_drik'], 0));
+                    $sheet->setCellValue($col.$row, round($data['output_pcs'], 0));
                     $col++;
                 } else {
-                    $sheet->setCellValue($col.$row, round($data['output_drik'], 0));
+                    $sheet->setCellValue($col.$row, round($data['output_pcs'], 0));
                     $col++;
                     if ($prosesName === 'HOTPRINT') {
                         $val = (float) ($data['jt_pcs'] ?? 0);
                         $totalJtAllProses += $val;
                         $sheet->setCellValue($col.$row, round($val, 0));
                     } else {
-                        $val = (float) ($data['jt_drik'] ?? 0);
+                        $val = (float) ($data['jt_pcs'] ?? 0);
                         $totalJtAllProses += $val;
                         $sheet->setCellValue($col.$row, round($val, 0));
                     }
@@ -258,14 +263,14 @@ class ExportController extends Controller
                 }
             }
 
-            $sheet->setCellValue($col.$row, round($sortirOutputDrik, 2));
+            $sheet->setCellValue($col.$row, round($sortirOutputDrik, 0));
             $col++;
             $totalJtAllProses += (float) $sortirJtPcs;
             $sheet->setCellValue($col.$row, round($sortirJtPcs, 0));
             $col++;
             $sheet->setCellValue($col.$row, round(0));
             $col++;
-            $sheet->setCellValue($col.$row, round($packingOutputDrik, 2));
+            $sheet->setCellValue($col.$row, round($packingOutputDrik, 0));
             $col++;
             $sheet->setCellValue($col.$row, $lastDate && $lastDate->tanggal
                 ? Carbon::parse($lastDate->tanggal)->format('d-m-Y')
@@ -585,7 +590,7 @@ class ExportController extends Controller
         $record->jtdrik = $jtdrik;
         $record->upspk = $upspk;
 
-        if (in_array($prosesName, ['lem', 'lem setengah jadi', 'sortir lem', 'sortir cetak'])) {
+        if (in_array($prosesName, ['lem', 'lem setengah jadi', 'sortir lem'])) {
             $record->jtdrik = $upspk > 0 ? $record->jtpcs / $upspk : 0;
             $record->outputpcs = $input - $record->jtpcs;
             $record->outputdrik = $upspk > 0 ? $record->outputpcs / $upspk : 0;
