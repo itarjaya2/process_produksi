@@ -1,6 +1,7 @@
  <?php
 
 use App\Http\Controllers\Produksi\DeptProduksi\ActivityLogController;
+use App\Http\Controllers\Produksi\DeptProduksi\ExportController;
 use App\Http\Controllers\Produksi\DeptProduksi\SpreadsheetController;
 
 Route::get('/get-job-spreadsheet/{id}', [SpreadsheetController::class, 'getJob']);
@@ -14,3 +15,6 @@ Route::get('/get-job-data/{job_id}', [SpreadsheetController::class, 'getJobData'
 Route::put('/proses-produksi/{id}', [SpreadsheetController::class, 'update'])->name('proses-produksi.update');
 Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
 Route::get('/activity-logs/proses/{proses_produksi_id}', [ActivityLogController::class, 'showByProses'])->name('activity-logs.show-by-proses');
+Route::get('/export/production-summary', [ExportController::class, 'exportProductionSummary'])->name('export.production-summary');
+Route::get('/export/production-mutasi', [ExportController::class, 'exportProductionMutasi'])->name('export.production-mutasi');
+Route::get('/export/production-mutasi-filter', [ExportController::class, 'exportProductionMutasiFiltered'])->name('export.production-mutasi-filter');
