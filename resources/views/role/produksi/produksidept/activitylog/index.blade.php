@@ -26,76 +26,10 @@
             'totaljam' => ['label' => 'Total Jam', 'code' => 'totaljam'],
             'total_pengerjaan_drik' => ['label' => 'Peng. Drik', 'code' => 'total_pengerjaan_drik'],
             'total_pengerjaan_pcs' => ['label' => 'Peng. PCS', 'code' => 'total_pengerjaan_pcs'],
+            'DELETED' => ['label' => 'Data Dihapus', 'code' => 'DELETED'], // ← tambahan
         ];
 
-        $processOrder = [
-            'PRINT',
-            'SORTIR CETAK',
-            'WATERBASE',
-            'HOCK',
-            'HOTPRINT',
-            'LAMINASI',
-            'LAMINATING',
-            'EMBOSS',
-            'DIECUT',
-            'CUTTING',
-            'PRETEL',
-            'LEM SETENGAH JADI',
-            'LEM',
-            'SORTIR LEM',
-            'SORTIR',
-            'PACKING',
-            'SORTPACKING',
-        ];
-
-        $softPalette = [
-            ['bg' => '#EAEAFE', 'text' => '#5850EC'], // 0  PRINT            - indigo
-            ['bg' => '#E1F2FB', 'text' => '#0B76B7'], // 1  SORTIR CETAK     - sky
-            ['bg' => '#E1F6ED', 'text' => '#0C8457'], // 2  WATERBASE        - emerald
-            ['bg' => '#FCF1DC', 'text' => '#B4740E'], // 3  HOCK             - amber
-            ['bg' => '#FBE7E7', 'text' => '#C1454B'], // 4  HOTPRINT         - soft red
-            ['bg' => '#F1E7FC', 'text' => '#7C4DCC'], // 5  LAMINASI         - violet
-            ['bg' => '#E1F3F5', 'text' => '#1080A0'], // 6  LAMINATING       - cyan
-            ['bg' => '#FBE6F0', 'text' => '#BD3E7B'], // 7  EMBOSS           - pink
-            ['bg' => '#EEF3DE', 'text' => '#647F1E'], // 8  DIECUT           - olive
-            ['bg' => '#E9EBEF', 'text' => '#5A6577'], // 9  CUTTING          - slate
-            ['bg' => '#FDEAE0', 'text' => '#C2600C'], // 10 PRETEL           - orange
-            ['bg' => '#F5E6F5', 'text' => '#9C3F9C'], // 11 LEM SETENGAH JADI- plum
-            ['bg' => '#E0F5F1', 'text' => '#0F8A72'], // 12 LEM              - teal
-            ['bg' => '#F8EBD9', 'text' => '#A05A10'], // 13 SORTIR LEM       - bronze
-            ['bg' => '#F3E9DE', 'text' => '#8B5E34'], // 14 SORTIR           - brown
-            ['bg' => '#E3EAFB', 'text' => '#2D5FCC'], // 15 PACKING          - blue
-            ['bg' => '#F1F5DA', 'text' => '#6B8E1E'], // 16 SORTPACKING      - chartreuse
-        ];
-
-        if (!function_exists('_prosesColor')) {
-            function _prosesColor($namaProses, $softPalette, $processOrder)
-            {
-                $teks = strtoupper(trim((string) $namaProses)) ?: 'DEFAULT';
-                $idx = array_search($teks, $processOrder, true);
-
-                if ($idx === false) {
-                    $fallbackSlots = max(1, count($softPalette) - count($processOrder));
-                    $idx = count($processOrder) + (abs(crc32($teks)) % $fallbackSlots);
-                }
-
-                return $softPalette[$idx % count($softPalette)];
-            }
-        }
-
-        // tambah label
-        if (!function_exists('_prosesLabel')) {
-            function _prosesLabel($namaProses)
-            {
-                $p = strtolower(trim((string) $namaProses));
-                $map = [
-                    'lem' => 'GLUED',
-                    'lem setengah jadi' => 'HALF GLUE',
-                    'sortir lem' => 'SORTIR GLUE',
-                ];
-                return $map[$p] ?? $namaProses;
-            }
-        }
+        $badgePalette = ['primary', 'success', 'warning', 'info', 'danger', 'dark'];
 
         // Summary stats dihitung dari collection halaman saat ini
         $collection = $logs->getCollection();
@@ -119,6 +53,42 @@
         $hasFilter = collect(['job', 'proses', 'user_id', 'field_name', 'tanggal_dari', 'tanggal_sampai'])->contains(
             fn($k) => request()->filled($k),
         );
+        // Label ramah-baca untuk field di dalam snapshot JSON "DELETED"
+        $snapshotLabels = [
+            'job' => 'Job',
+            'product' => 'Produk',
+            'designno' => 'Docket',
+            'po' => 'PO',
+            'qty' => 'Qty',
+            'proses' => 'Proses',
+            'mesin' => 'Mesin',
+            'operator' => 'Operator',
+            'shift' => 'Shift',
+            'tanggal' => 'Tanggal',
+            'set' => 'Set',
+            'run' => 'Run',
+            'finish' => 'Finish',
+            'break' => 'Break',
+            'upspk' => 'UPSPK',
+            'input' => 'Input',
+            'jtdrik' => 'JT Drik',
+            'jtpcs' => 'JT PCS',
+            'outputdrik' => 'Output Drik',
+            'outputpcs' => 'Output PCS',
+        ];
+
+        if (!function_exists('_prosesLabel')) {
+            function _prosesLabel($namaProses)
+            {
+                $p = strtolower(trim((string) $namaProses));
+                $map = [
+                    'lem' => 'GLUED',
+                    'lem setengah jadi' => 'HALF GLUE',
+                    'sortir lem' => 'SORTIR GLUE',
+                ];
+                return strtoupper($map[$p] ?? $namaProses);
+            }
+        }
     @endphp
 
     {{-- ═══════════════════════════════════════════════════════════════ --}}
@@ -762,12 +732,27 @@
                                     $proses = $log->prosesProduksi->proses ?? null;
                                     $jobNo = $log->prosesProduksi->job ?? '-';
                                     $rawField = $log->field_name ?? '';
+                                    $isDeleted = $rawField === 'DELETED';
                                     $fInfo = $fieldLabels[$rawField] ?? [
                                         'label' => ucwords(str_replace('_', ' ', $rawField)),
                                         'code' => $rawField,
                                     ];
+
+                                    // Untuk baris DELETED, data proses produksi aslinya sudah hilang dari
+                                    // tabel proses_produksis (prosesProduksi relation jadi null), jadi kita
+                                    // ambil job/produk/proses dari snapshot JSON yang disimpan di old_value.
+                                    $deletedSnapshot = null;
+                                    if ($isDeleted) {
+                                        $deletedSnapshot = json_decode($log->old_value ?? '', true);
+                                        if (is_array($deletedSnapshot)) {
+                                            $jobNo = $deletedSnapshot['job'] ?? $jobNo;
+                                            $produk = $deletedSnapshot['product'] ?? $produk;
+                                            $proses = $deletedSnapshot['proses'] ?? $proses;
+                                        }
+                                    }
+
                                     $teksBadge = $proses ?? 'default';
-                                    $c = _prosesColor($teksBadge, $softPalette, $processOrder);
+                                    $bColor = $badgePalette[abs(crc32($teksBadge)) % count($badgePalette)];
                                     $oldVal = $log->old_value;
                                     $newVal = $log->new_value;
                                     $isNumericField = in_array($rawField, [
@@ -782,7 +767,7 @@
                                         'upspk',
                                     ]);
                                 @endphp
-                                <tr>
+                                <tr @if ($isDeleted) class="table-danger bg-opacity-10" @endif>
                                     {{-- No --}}
                                     <td><span class="rn">{{ $logs->firstItem() + $i }}</span></td>
 
@@ -790,8 +775,7 @@
                                     <td class="text-nowrap">
                                         @if ($log->created_at)
                                             <div class="ts-d">
-                                                {{ strtoupper(\Carbon\Carbon::parse($log->created_at)->format('d M y')) }}
-                                            </div>
+                                                {{ \Carbon\Carbon::parse($log->created_at)->format('d/m/y') }}</div>
                                             <div class="ts-t">
                                                 {{ \Carbon\Carbon::parse($log->created_at)->format('H:i:s') }}</div>
                                         @else
@@ -807,18 +791,14 @@
                                     </td>
 
                                     {{-- No. Job --}}
-                                    <td class="text-nowrap">
-                                        <span class="fw-bold small">{{ $jobNo }}</span>
-                                    </td>
-                                    <td class="text-nowrap">
-                                        <span class="fw-bold small">{{ $produk }}</span>
-                                    </td>
+                                    <td class="text-nowrap"><span class="fw-bold small">{{ $jobNo }}</span></td>
+                                    <td class="text-nowrap"><span class="fw-bold small">{{ $produk }}</span></td>
 
                                     {{-- Proses Produksi --}}
                                     <td>
                                         @if ($proses)
-                                            <span class="badge fw-semibold"
-                                                style="font-size:.74rem; border-radius:8px; padding:.22rem .58rem; background-color: {{ $c['bg'] }}; color: {{ $c['text'] }};">
+                                            <span class="badge bg-label-{{ $bColor }} fw-semibold"
+                                                style="font-size:.74rem; border-radius:8px; padding:.22rem .58rem">
                                                 {{ _prosesLabel($proses) }}
                                             </span>
                                         @else
@@ -828,54 +808,84 @@
 
                                     {{-- Kolom --}}
                                     <td>
-                                        <span class="field-pill">
-                                            <span class="fp-label">{{ $fInfo['label'] }}</span>
-                                        </span>
-                                    </td>
-
-                                    {{-- Sebelum (Old Value) --}}
-                                    <td class="td-old text-start">
-                                        @if ($oldVal !== null && $oldVal !== '')
-                                            <span class="diff-chip text-danger"
-                                                style="white-space: nowrap; max-width: none;">
-                                                @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
-                                                    {{ $rawField === 'tanggal' ? strtoupper(\Carbon\Carbon::parse($oldVal)->format('d M y')) : strtoupper(\Carbon\Carbon::parse($oldVal)->format('d M y')) . ' ' . \Carbon\Carbon::parse($oldVal)->format('H:i') }}
-                                                @elseif ($rawField === 'proses')
-                                                    {{ _prosesLabel($oldVal) }}
-                                                @else
-                                                    {{ is_numeric($oldVal) && $rawField !== 'job'
-                                                        ? (floor($oldVal) == $oldVal
-                                                            ? number_format((float) $oldVal, 0, ',', '.')
-                                                            : number_format((float) $oldVal, 2, ',', '.'))
-                                                        : $oldVal }}
-                                                @endif
+                                        @if ($isDeleted)
+                                            <span class="field-pill"
+                                                style="background:rgba(220,53,69,.09); border-color:rgba(220,53,69,.18)">
+                                                <span class="fp-label" style="color:#dc3545">
+                                                    <i class="bx bx-trash me-1"></i>{{ $fInfo['label'] }}
+                                                </span>
                                             </span>
                                         @else
-                                            {!! $isNumericField
-                                                ? '<span class="diff-chip ' . ($oldVal === null || $oldVal === '' ? 'text-danger' : 'text-success') . '">0</span>'
-                                                : '<span class="diff-null">null</span>' !!}
+                                            <span class="field-pill">
+                                                <span class="fp-label">{{ $fInfo['label'] }}</span>
+                                            </span>
                                         @endif
                                     </td>
 
-                                    {{-- Sesudah (New Value) --}}
-                                    <td class="td-new text-start">
-                                        @if ($newVal !== null && $newVal !== '')
-                                            <span class="diff-chip text-success"
-                                                style="white-space: nowrap; max-width: none;">
-                                                @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
-                                                    {{ $rawField === 'tanggal' ? strtoupper(\Carbon\Carbon::parse($newVal)->format('d M y')) : strtoupper(\Carbon\Carbon::parse($newVal)->format('d M y')) . ' ' . \Carbon\Carbon::parse($newVal)->format('H:i') }}
-                                                @elseif ($rawField === 'proses')
-                                                    {{ _prosesLabel($newVal) }}
-                                                @else
-                                                    {{ is_numeric($newVal) && $rawField !== 'job' ? (floor($newVal) == $newVal ? number_format((float) $newVal, 0, ',', '.') : number_format((float) $newVal, 2, ',', '.')) : $newVal }}
-                                                @endif
-                                            </span>
-                                        @else
-                                            {!! $isNumericField
-                                                ? '<span class="diff-chip ' . ($oldVal === null || $oldVal === '' ? 'text-danger' : 'text-success') . '">0</span>'
-                                                : '<span class="diff-null">null</span>' !!}
-                                        @endif
-                                    </td>
+                                    @if ($isDeleted)
+                                        {{-- Sebelum: ringkasan snapshot data yang dihapus --}}
+                                        <td colspan="2" class="text-start">
+                                            @if (is_array($deletedSnapshot))
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    @foreach ($deletedSnapshot as $key => $val)
+                                                        @continue(in_array($key, ['job', 'product', 'proses']) || $val === null || $val === '')
+                                                        <span class="diff-chip text-danger"
+                                                            style="white-space:nowrap; max-width:none;">
+                                                            <span class="text-muted"
+                                                                style="font-weight:500">{{ $snapshotLabels[$key] ?? $key }}:</span>
+                                                            {{ $val }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <span class="diff-null">Snapshot tidak tersedia</span>
+                                            @endif
+                                        </td>
+                                    @else
+                                        {{-- Sebelum (Old Value) --}}
+                                        <td class="td-old text-start">
+                                            @if ($oldVal !== null && $oldVal !== '')
+                                                <span class="diff-chip text-danger"
+                                                    style="white-space: nowrap; max-width: none;">
+                                                    @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
+                                                        {{ \Carbon\Carbon::parse($oldVal)->format('d/m/y H:i') }}
+                                                    @elseif ($rawField === 'proses')
+                                                        {{ _prosesLabel($oldVal) }}
+                                                    @else
+                                                        {{ is_numeric($oldVal) && $rawField !== 'job'
+                                                            ? (floor($oldVal) == $oldVal
+                                                                ? number_format((float) $oldVal, 0, ',', '.')
+                                                                : number_format((float) $oldVal, 2, ',', '.'))
+                                                            : $oldVal }}
+                                                    @endif
+                                                </span>
+                                            @else
+                                                {!! $isNumericField
+                                                    ? '<span class="diff-chip ' . ($oldVal === null || $oldVal === '' ? 'text-danger' : 'text-success') . '">0</span>'
+                                                    : '<span class="diff-null">null</span>' !!}
+                                            @endif
+                                        </td>
+
+                                        {{-- Sesudah (New Value) --}}
+                                        <td class="td-new text-start">
+                                            @if ($newVal !== null && $newVal !== '')
+                                                <span class="diff-chip text-success"
+                                                    style="white-space: nowrap; max-width: none;">
+                                                    @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
+                                                        {{ \Carbon\Carbon::parse($newVal)->format('d/m/y H:i') }}
+                                                    @elseif ($rawField === 'proses')
+                                                        {{ _prosesLabel($newVal) }}
+                                                    @else
+                                                        {{ is_numeric($newVal) && $rawField !== 'job' ? (floor($newVal) == $newVal ? number_format((float) $newVal, 0, ',', '.') : number_format((float) $newVal, 2, ',', '.')) : $newVal }}
+                                                    @endif
+                                                </span>
+                                            @else
+                                                {!! $isNumericField
+                                                    ? '<span class="diff-chip ' . ($oldVal === null || $oldVal === '' ? 'text-danger' : 'text-success') . '">0</span>'
+                                                    : '<span class="diff-null">null</span>' !!}
+                                            @endif
+                                        </td>
+                                    @endif
                                 </tr>
                             @empty
                                 <tr>
