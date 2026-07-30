@@ -7,6 +7,8 @@ use App\Models\ProsesProduksi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Csv;
+// format csv
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ExportController extends Controller
@@ -296,12 +298,13 @@ class ExportController extends Controller
                 ob_end_clean();
             }
 
-            $writer = new Xlsx($spreadsheet);
+            // $writer = new Xlsx($spreadsheet);
+            $writer = new Csv($spreadsheet);
             $writer->save('php://output');
             exit;
 
-        }, 'summary_production_'.date('Ymd_His').'.xlsx', [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }, 'summary_production_'.date('Ymd_His').'.csv', [
+            'Content-Type' => 'text/csv',
         ]);
     }
 
