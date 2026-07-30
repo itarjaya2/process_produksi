@@ -83,6 +83,20 @@
             }
         }
 
+        // tambah label
+        if (!function_exists('_prosesLabel')) {
+            function _prosesLabel($namaProses)
+            {
+                $p = strtolower(trim((string) $namaProses));
+                $map = [
+                    'lem' => 'GLUED',
+                    'lem setengah jadi' => 'HALF GLUE',
+                    'sortir lem' => 'SORTIR GLUE',
+                ];
+                return $map[$p] ?? $namaProses;
+            }
+        }
+
         // Summary stats dihitung dari collection halaman saat ini
         $collection = $logs->getCollection();
         $todayTotal = $collection
@@ -571,7 +585,7 @@
                                     @foreach ($listProses as $p)
                                         <option value="{{ $p }}"
                                             {{ request('proses') == $p ? 'selected' : '' }}>
-                                            {{ $p }}
+                                            {{ _prosesLabel($p) }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -655,7 +669,7 @@
                     $activeBadges['No. Job'] = request('job');
                 }
                 if (request()->filled('proses')) {
-                    $activeBadges['Proses'] = request('proses');
+                    $activeBadges['Proses'] = _prosesLabel(request('proses'));
                 }
                 if (request()->filled('user_id')) {
                     $activeBadges['User ID'] = request('user_id');
@@ -805,7 +819,7 @@
                                         @if ($proses)
                                             <span class="badge fw-semibold"
                                                 style="font-size:.74rem; border-radius:8px; padding:.22rem .58rem; background-color: {{ $c['bg'] }}; color: {{ $c['text'] }};">
-                                                {{ $proses }}
+                                                {{ _prosesLabel($proses) }}
                                             </span>
                                         @else
                                             <span class="text-muted small">–</span>
@@ -826,6 +840,8 @@
                                                 style="white-space: nowrap; max-width: none;">
                                                 @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
                                                     {{ $rawField === 'tanggal' ? strtoupper(\Carbon\Carbon::parse($oldVal)->format('d M y')) : strtoupper(\Carbon\Carbon::parse($oldVal)->format('d M y')) . ' ' . \Carbon\Carbon::parse($oldVal)->format('H:i') }}
+                                                @elseif ($rawField === 'proses')
+                                                    {{ _prosesLabel($oldVal) }}
                                                 @else
                                                     {{ is_numeric($oldVal) && $rawField !== 'job'
                                                         ? (floor($oldVal) == $oldVal
@@ -848,6 +864,8 @@
                                                 style="white-space: nowrap; max-width: none;">
                                                 @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
                                                     {{ $rawField === 'tanggal' ? strtoupper(\Carbon\Carbon::parse($newVal)->format('d M y')) : strtoupper(\Carbon\Carbon::parse($newVal)->format('d M y')) . ' ' . \Carbon\Carbon::parse($newVal)->format('H:i') }}
+                                                @elseif ($rawField === 'proses')
+                                                    {{ _prosesLabel($newVal) }}
                                                 @else
                                                     {{ is_numeric($newVal) && $rawField !== 'job' ? (floor($newVal) == $newVal ? number_format((float) $newVal, 0, ',', '.') : number_format((float) $newVal, 2, ',', '.')) : $newVal }}
                                                 @endif
