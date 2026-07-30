@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Produksi\DeptProduksi;
 
 use App\Http\Controllers\Controller;
+use App\Models\Prodev;
 use App\Models\ProsesProduksi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -38,7 +39,7 @@ class ExportController extends Controller
         $sheet->setTitle('Summary Production');
 
         // ===================== HEADER =====================
-        $headers = ['', 'JOB', 'CUST', 'PRODUCT', 'DOCKET', 'PO', 'QTY ORDER'];
+        $headers = ['VALIDASI', 'JOB', 'CUST', 'PRODUCT', 'DOCKET', 'PO', 'QTY ORDER'];
 
         foreach ($processOrder as $i => $prosesName) {
             $label = $processLabel[$prosesName] ?? $prosesName;
@@ -73,7 +74,6 @@ class ExportController extends Controller
         $headers[] = 'JT ALL PROSES';
         $headers[] = '% JT ALL PROSES';
         $headers[] = 'INPUT CETAK';
-        $headers[] = 'TOTAL KIRIM';
 
         $sheet->fromArray($headers, null, 'A1');
 
@@ -84,6 +84,19 @@ class ExportController extends Controller
             ->distinct()
             ->orderBy('job')
             ->pluck('job');
+
+        // model prodev
+        $prodevList = Prodev::all();
+        $prodevMap = [];
+        foreach ($prodevList as $pd) {
+            $prodevMap[(string) $pd->id] = $pd;
+            if (! empty($pd->job)) {
+                $prodevMap[(string) $pd->job] = $pd;
+            }
+            if (! empty($pd->no_job)) {
+                $prodevMap[(string) $pd->no_job] = $pd;
+            }
+        }
 
         $row = 2;
 
@@ -204,11 +217,21 @@ class ExportController extends Controller
             // ===================== TULIS BARIS =====================
             $col = 'A';
 
+            // data customer dari prodev
+            $prodev = $prodevMap[(string) $job] ?? Prodev::find($job);
+            $customer = '-';
+            if ($prodev) {
+                $customer = $prodev->customer ?? $prodev->customer_name ?? $prodev->name_customer ?? $prodev->cust ?? '-';
+                if ($customer === '' || $customer === null) {
+                    $customer = '-';
+                }
+            }
+
             $sheet->setCellValue($col.$row, '');
             $col++;
             $sheet->setCellValue($col.$row, $job);
             $col++;
-            $sheet->setCellValue($col.$row, ''); // CUSTOMER
+            $sheet->setCellValue($col.$row, $customer); // CUSTOMER
             $col++;
             $sheet->setCellValue($col.$row, $firstRecord->product ?? '-');
             $col++;
@@ -287,8 +310,6 @@ class ExportController extends Controller
             $sheet->setCellValue($col.$row, round(0));
             $col++;
             $sheet->setCellValue($col.$row, round($inputCetak, 0));
-            $col++;
-            $sheet->setCellValue($col.$row, round(0));
 
             $row++;
         }
