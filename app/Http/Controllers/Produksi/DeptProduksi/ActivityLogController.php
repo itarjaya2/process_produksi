@@ -95,7 +95,7 @@ class ActivityLogController extends Controller
             ->map(function ($log) {
                 return [
                     'waktu' => $log->created_at
-                        ? strtoupper(Carbon::parse($log->created_at)->format('d M y H:i:s'))
+                        ? Carbon::parse($log->created_at)->format('d/m/y H:i:s')
                         : '-',
                     'user' => optional($log->user)->name ?? 'System',
                     'field' => $log->field_name,

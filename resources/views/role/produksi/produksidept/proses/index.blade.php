@@ -45,7 +45,7 @@
                     <i class="bx bx-download fs-5"></i>
                     Export Summary
                 </a>
-                {{-- <a href="{{ route('export.production-array') }}"
+                <a href="{{ route('export.production-array') }}"
                     class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
                     <i class="bx bx-download fs-5"></i>
                     Export Spreadsheet
@@ -54,7 +54,7 @@
                     class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
                     <i class="bx bx-download fs-5"></i>
                     Export Filter
-                </a> --}}
+                </a>
             </div>
         </div>
 
@@ -1037,13 +1037,13 @@
             }
 
             /* ══════════════════════════════════════════════════════
-                                                                                                                                   FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
-                                                                                                                                   `left` kolom-2 di-set lewat JS (updateStickyOffsets)
-                                                                                                                                   karena lebar kolom Job bisa berubah-ubah isinya —
-                                                                                                                                   kalau di-hardcode di CSS, begitu isi Job lebih
-                                                                                                                                   panjang/pendek, kolom Produk akan salah posisi
-                                                                                                                                   (menutupi Job atau ada gap kosong).
-                                                                                                                                   ══════════════════════════════════════════════════════ */
+                                                                                                                           FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
+                                                                                                                           `left` kolom-2 di-set lewat JS (updateStickyOffsets)
+                                                                                                                           karena lebar kolom Job bisa berubah-ubah isinya —
+                                                                                                                           kalau di-hardcode di CSS, begitu isi Job lebih
+                                                                                                                           panjang/pendek, kolom Produk akan salah posisi
+                                                                                                                           (menutupi Job atau ada gap kosong).
+                                                                                                                           ══════════════════════════════════════════════════════ */
             .produksi-modern .ppx-sticky-col {
                 position: sticky;
                 z-index: 6;
@@ -2259,7 +2259,7 @@
             function confirmDeleteRow(id, jobLabel) {
                 if (!confirm(
                         `Yakin ingin menghapus data Job "${jobLabel}" ini?\n\nData akan tetap tercatat di Activity Log sebagai riwayat.`
-                    )) {
+                        )) {
                     return;
                 }
 

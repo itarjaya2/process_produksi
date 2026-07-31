@@ -18,3 +18,6 @@ Route::get('/activity-logs/proses/{proses_produksi_id}', [ActivityLogController:
 Route::get('/export/production-summary', [ExportController::class, 'exportProductionSummary'])->name('export.production-summary');
 Route::get('/export/production-mutasi', [ExportController::class, 'exportProductionMutasi'])->name('export.production-mutasi');
 Route::get('/export/production-mutasi-filter', [ExportController::class, 'exportProductionMutasiFiltered'])->name('export.production-mutasi-filter');
+Route::get('/export/production-filter', [ExportController::class, 'exportProductionMutasiFiltered'])->name('export.production-filter');
+Route::get('/export/production-array', [ExportController::class, 'exportProductionArray'])->name('export.production-array');
+Route::delete('/proses-produksi/{id}', [SpreadsheetController::class, 'destroy'])->name('proses-produksi.destroy');
