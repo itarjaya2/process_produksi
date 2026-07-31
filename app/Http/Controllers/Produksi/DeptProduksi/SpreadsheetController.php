@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Produksi\DeptProduksi;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\ProcessSpreadsheetAndDbJob;
 use App\Models\ActivityLog;
 use App\Models\Karyawan;
 use App\Models\Karyawanstaff;
@@ -318,6 +317,7 @@ class SpreadsheetController extends Controller
             'lem',
             'lem setengah jadi',
             'sortir lem',
+            'sortir cetak',
         ])) {
             // jtdrik = jtpcs/upspk
             $record->jtdrik = $upspk > 0 ? $record->jtpcs / $upspk : 0;
@@ -929,12 +929,10 @@ class SpreadsheetController extends Controller
                 }
             }
 
-            // Fetch existing dates if available
             $existingSet = ! empty($record->set) && $record->set !== '-' ? Carbon::parse($record->set) : null;
             $existingRun = ! empty($record->run) && $record->run !== '-' ? Carbon::parse($record->run) : null;
             $existingFinish = ! empty($record->finish) && $record->finish !== '-' ? Carbon::parse($record->finish) : null;
 
-            // Set and Run cannot both be empty
             if ($field === 'set' && $parsedVal === null) {
                 if ($existingRun === null) {
                     return response()->json([
@@ -999,23 +997,23 @@ class SpreadsheetController extends Controller
             }
         }
 
-        if ($field === 'jtdrik' && $prosesName === 'lem') {
+        // === PERBAIKAN 1: JT Drik diblok untuk LEM & SORTPACKING ===
+        if ($field === 'jtdrik' && in_array($prosesName, ['lem', 'sortpacking', 'lem setengah jadi', 'sortir lem'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT Drik untuk proses LEM tidak dapat diinput secara inline.',
+                'message' => 'Kolom JT Drik untuk proses LEM dan SORTPACKING tidak dapat diinput secara inline.',
             ], 422);
         }
 
-        if ($field === 'jtpcs' && ! in_array($prosesName, ['lem', 'sortpacking'], true)) {
+        if ($field === 'jtpcs' && ! in_array($prosesName, ['lem', 'sortpacking', 'lem setengah jadi', 'sortir lem'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kolom JT PCS hanya dapat diubah untuk proses LEM dan SORTPACKING.',
+                'message' => 'Kolom JT PCS hanya dapat diubah untuk proses LEM, SORTIR LEM, LEM SETENGAH JADI dan SORTPACKING.',
             ], 422);
         }
 
-        if ($prosesName === 'lem' && $field === 'jtpcs') {
-            $saveField = 'input';
-        }
+        // === PERBAIKAN 2: HAPUS pengalihan jtpcs -> input untuk proses LEM ===
+        // (blok "if ($prosesName === 'lem' && $field === 'jtpcs') { $saveField = 'input'; }" DIHAPUS)
 
         // Validation: JT Drik cannot be greater than Input
         if ($prosesName !== 'lem' && ! in_array($field, $stringFields, true)) {
@@ -1034,20 +1032,16 @@ class SpreadsheetController extends Controller
             }
         }
 
-        // 1. Simpan nilai lama sebelum diubah oleh database
         $oldValue = $record->{$saveField};
 
-        // 2. Siapkan nilai baru yang sudah diformat sesuai tipe datanya
         $formattedNewValue = in_array($saveField, $stringFields, true)
             ? (empty($value) || $value === '-' ? null : $value)
             : (float) $value;
 
         DB::transaction(function () use ($record, $saveField, $formattedNewValue, $oldValue) {
-            // Update data utama
             $record->{$saveField} = $formattedNewValue;
             $record->save();
 
-            // 3. Cek apakah ada perubahan nilai (agar tidak mencatat spam jika nilai sama)
             if ($oldValue != $formattedNewValue && ! is_null($oldValue)) {
                 ActivityLog::create([
                     'proses_produksi_id' => $record->id,
@@ -1061,7 +1055,6 @@ class SpreadsheetController extends Controller
 
         $this->calculateDerivedValues($record);
 
-        // Hitung totaljam dari set/run/finish (sama seperti logika di index())
         $totalJam = 0;
         if (! empty($record->finish) && (! empty($record->set) || ! empty($record->run))) {
             $waktuMulai = Carbon::parse(! empty($record->set) ? $record->set : $record->run);

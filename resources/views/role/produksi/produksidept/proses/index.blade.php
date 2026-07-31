@@ -35,7 +35,7 @@
                     <i class="bx bx-history fs-5"></i>
                     Activity Log
                 </a>
-                {{-- <a href="{{ route('export.production-mutasi') }}"
+                <a href="{{ route('export.production-mutasi') }}"
                     class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
                     <i class="bx bx-download fs-5"></i>
                     Export Mutation
@@ -44,6 +44,16 @@
                     class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
                     <i class="bx bx-download fs-5"></i>
                     Export Summary
+                </a>
+                {{-- <a href="{{ route('export.production-array') }}"
+                    class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
+                    <i class="bx bx-download fs-5"></i>
+                    Export Spreadsheet
+                </a>
+                <a href="{{ route('export.production-filter', request()->query()) }}"
+                    class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
+                    <i class="bx bx-download fs-5"></i>
+                    Export Filter
                 </a> --}}
             </div>
         </div>
@@ -363,9 +373,7 @@
                                                     }
                                                     try {
                                                         $s = trim(str_replace('T', ' ', (string) $val));
-                                                        return \Carbon\Carbon::parse($s)
-                                                            ->timezone('Asia/Jakarta')
-                                                            ->format('H:i');
+                                                        return \Carbon\Carbon::parse($s)->format('H:i');
                                                     } catch (\Exception $e) {
                                                         return $val;
                                                     }
@@ -530,7 +538,7 @@
                                             <td class="text-center fw-semibold">
                                                 <span class="inline-edit-cell" data-id="{{ $data->id }}"
                                                     data-field="jtdrik" data-value="{{ $data->jtdrik ?? 0 }}"
-                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem']) ? '0' : '1' }}">
+                                                    data-editable="{{ in_array(strtolower($data->proses ?? ''), ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking']) ? '0' : '1' }}">
                                                     {{ $data->jtdrik ? number_format($data->jtdrik, 0, ',', '.') : '0' }}
                                                 </span>
                                             </td>
@@ -548,7 +556,7 @@
                                                 {{ $data->outputdrik ? number_format($data->outputdrik, 0, ',', '.') : '0' }}
                                             </td>
                                             <td class="text-center fw-semibold text-nowrap">
-                                                {{ $data->created_at ? strtoupper(\Carbon\Carbon::parse($data->created_at)->setTimezone('Asia/Jakarta')->format('d/M/y H:i')) : '-' }}
+                                                {{ $data->created_at ? strtoupper(\Carbon\Carbon::parse($data->created_at)->setTimezone('Asia/Jakarta')->format(' d M y H:i')) : '-' }}
                                             </td>
                                             {{-- Manage Dropdown --}}
                                             <td class="text-center pe-4">
@@ -596,6 +604,16 @@
                                                                 href="#"
                                                                 onclick="showActivityLog({{ $data->id }}, '{{ addslashes($data->job ?? '-') }}', '{{ addslashes($data->product ?? '-') }}')">
                                                                 <i class="bx bx-history text-warning"></i> Riwayat
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <hr class="dropdown-divider">
+                                                        </li>
+                                                        <li>
+                                                            <a class="dropdown-item d-flex align-items-center gap-2 text-danger"
+                                                                href="#"
+                                                                onclick="confirmDeleteRow({{ $data->id }}, '{{ addslashes($data->job ?? '-') }}')">
+                                                                <i class="bx bx-trash"></i> Hapus
                                                             </a>
                                                         </li>
                                                     </ul>
@@ -1019,13 +1037,13 @@
             }
 
             /* ══════════════════════════════════════════════════════
-                                                                                                                                       FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
-                                                                                                                                       `left` kolom-2 di-set lewat JS (updateStickyOffsets)
-                                                                                                                                       karena lebar kolom Job bisa berubah-ubah isinya —
-                                                                                                                                       kalau di-hardcode di CSS, begitu isi Job lebih
-                                                                                                                                       panjang/pendek, kolom Produk akan salah posisi
-                                                                                                                                       (menutupi Job atau ada gap kosong).
-                                                                                                                                       ══════════════════════════════════════════════════════ */
+                                                                                                                                   FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
+                                                                                                                                   `left` kolom-2 di-set lewat JS (updateStickyOffsets)
+                                                                                                                                   karena lebar kolom Job bisa berubah-ubah isinya —
+                                                                                                                                   kalau di-hardcode di CSS, begitu isi Job lebih
+                                                                                                                                   panjang/pendek, kolom Produk akan salah posisi
+                                                                                                                                   (menutupi Job atau ada gap kosong).
+                                                                                                                                   ══════════════════════════════════════════════════════ */
             .produksi-modern .ppx-sticky-col {
                 position: sticky;
                 z-index: 6;
@@ -1864,7 +1882,9 @@
                             {
                                 icon: 'bx-layer',
                                 label: 'Qty',
-                                val: d.qty
+                                val: d.qty,
+                                field: 'qty',
+                                editable: true
                             },
                         ]
                     },
@@ -2007,8 +2027,9 @@
                         if (r.editable) {
                             let isEditableVal = '1';
                             if (r.field === 'jtdrik') {
-                                isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem'].includes(d.proses
-                                    .toLowerCase()) ? '0' : '1';
+                                isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking']
+                                    .includes(d.proses
+                                        .toLowerCase()) ? '0' : '1';
                             } else if (r.field === 'jtpcs') {
                                 isEditableVal = ['lem', 'lem setengah jadi', 'sortir lem', 'sortpacking']
                                     .includes(d.proses.toLowerCase()) ? '1' :
@@ -2027,7 +2048,7 @@
                             valHtml =
                                 `<span class="inline-edit-cell" data-id="${d.id}" data-field="${r.field}" data-value="${r.val}" data-editable="${isEditableVal}">${formattedVal}</span>`;
                         } else {
-                            const formattedVal = (r.field && ['qty', 'outputpcs', 'outputdrik',
+                            const formattedVal = (r.field && ['outputpcs', 'outputdrik',
                                     'total_pengerjaan_drik', 'total_pengerjaan_pcs'
                                 ].includes(r.field)) ?
                                 parseFloat(r.val || 0).toLocaleString('id-ID', {
@@ -2233,6 +2254,40 @@
                         alBody.innerHTML =
                             `<div class="text-center py-4 text-danger small"><i class="bx bx-error-circle me-1"></i>Gagal memuat riwayat log.</div>`;
                     });
+            }
+
+            function confirmDeleteRow(id, jobLabel) {
+                if (!confirm(
+                        `Yakin ingin menghapus data Job "${jobLabel}" ini?\n\nData akan tetap tercatat di Activity Log sebagai riwayat.`
+                    )) {
+                    return;
+                }
+
+                fetch(`{{ url('proses-produksi') }}/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json',
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) {
+                            showToast(res.message, 'success');
+                            // refresh tbody & tfoot supaya baris hilang & grand total ikut update
+                            $.get(window.location.href, function(html) {
+                                const newDoc = new DOMParser().parseFromString(html, 'text/html');
+                                const newTbody = newDoc.querySelector('#tblProduksi tbody');
+                                const newTfoot = newDoc.querySelector('#tblProduksi tfoot');
+                                if (newTbody) $('#tblProduksi tbody').replaceWith($(newTbody));
+                                if (newTfoot) $('#tblProduksi tfoot').replaceWith($(newTfoot));
+                                updateStickyOffsets();
+                            });
+                        } else {
+                            showToast(res.message || 'Gagal menghapus data.', 'danger');
+                        }
+                    })
+                    .catch(() => showToast('Gagal menghapus data.', 'danger'));
             }
         </script>
 

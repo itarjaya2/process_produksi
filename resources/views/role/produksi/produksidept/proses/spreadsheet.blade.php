@@ -223,7 +223,7 @@
                                         <label class="w-1/3">Operator</label>
                                         <div class="operator-wrapper relative w-2/3">
                                             <div class="operator-badges flex flex-wrap gap-1 mb-1"></div>
-                                            <input type="text"
+                                            <input type="text" required
                                                 class="operator-input border px-2 py-1 w-full rounded-md"
                                                 placeholder="Ketik atau pilih operator..." autocomplete="off">
                                             <div

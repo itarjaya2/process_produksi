@@ -88,10 +88,10 @@
         }
 
         /* ══════════════════════════════════════════════════════
-                                                                                           FIX: kotak search job — dulu melebar mengikuti isi chip,
-                                                                                           sekarang dikunci lebarnya (300px, lihat inline style di HTML)
-                                                                                           dan discroll ke samping secara internal begitu chip penuh.
-                                                                                           ══════════════════════════════════════════════════════ */
+                                                                                   FIX: kotak search job — dulu melebar mengikuti isi chip,
+                                                                                   sekarang dikunci lebarnya (300px, lihat inline style di HTML)
+                                                                                   dan discroll ke samping secara internal begitu chip penuh.
+                                                                                   ══════════════════════════════════════════════════════ */
         .produksi-modern .ppx-chip-input {
             display: flex;
             align-items: center;
@@ -158,8 +158,8 @@
         }
 
         /* FIX: dropdown saran sekarang benar-benar "mengambang" (position-absolute
-                                                                                           ditambahkan langsung di markup) dengan offset top yang jelas, sehingga
-                                                                                           tidak lagi mendorong layout di bawahnya. */
+                                                                                   ditambahkan langsung di markup) dengan offset top yang jelas, sehingga
+                                                                                   tidak lagi mendorong layout di bawahnya. */
         .produksi-modern .ppx-suggestions {
             z-index: 1055;
             top: calc(100% + 6px);
@@ -208,8 +208,8 @@
         }
 
         /* ══════════════════════════════════════════════════════
-                                                                                           KPI CARDS
-                                                                                           ══════════════════════════════════════════════════════ */
+                                                                                   KPI CARDS
+                                                                                   ══════════════════════════════════════════════════════ */
         .produksi-modern .ppx-kpi-card {
             background: var(--ppx-surface);
             border-radius: var(--ppx-radius-lg);
@@ -337,10 +337,10 @@
         }
 
         /* Badge proses — sekarang SOFT (bg pastel + teks warna senada), bukan
-                                                                                           solid + teks putih. Warna tetap dipilih deterministik per nama proses
-                                                                                           lewat _prosesColor() di PHP (mengembalikan pasangan bg/text), dan dipakai
-                                                                                           persis sama baik di baris tabel maupun di modal detail
-                                                                                           (lihat 'proses_bg' & 'proses_text' pada JSON). */
+                                                                                   solid + teks putih. Warna tetap dipilih deterministik per nama proses
+                                                                                   lewat _prosesColor() di PHP (mengembalikan pasangan bg/text), dan dipakai
+                                                                                   persis sama baik di baris tabel maupun di modal detail
+                                                                                   (lihat 'proses_bg' & 'proses_text' pada JSON). */
         .produksi-modern .ppx-badge-proses {
             border-radius: 8px;
             font-size: .72rem;
@@ -1397,6 +1397,8 @@
                             icon: 'bx-layer',
                             label: 'Qty',
                             val: d.qty,
+                            field: 'qty',
+                            editable: true
                         },
                     ]
                 },
@@ -1565,7 +1567,7 @@
                         valHtml =
                             `<span class="badge fw-bold text-uppercase" style="background:${badgeBg}; color:${badgeText}; border-radius:8px; padding:.38em .75em; font-size:.72rem; letter-spacing:.02em;">${r.val}</span>`;
                     } else {
-                        const formattedVal = (r.field && ['qty', 'outputpcs', 'outputdrik',
+                        const formattedVal = (r.field && ['outputpcs', 'outputdrik',
                                 'total_pengerjaan_drik', 'total_pengerjaan_pcs'
                             ].includes(r.field)) ?
                             parseFloat(r.val || 0).toLocaleString('id-ID', {
