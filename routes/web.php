@@ -20,4 +20,5 @@ Route::get('/export/production-mutasi', [ExportController::class, 'exportProduct
 Route::get('/export/production-mutasi-filter', [ExportController::class, 'exportProductionMutasiFiltered'])->name('export.production-mutasi-filter');
 Route::get('/export/production-filter', [ExportController::class, 'exportProductionMutasiFiltered'])->name('export.production-filter');
 Route::get('/export/production-array', [ExportController::class, 'exportProductionArray'])->name('export.production-array');
+Route::post('/proses-produksi/bulk-destroy', [SpreadsheetController::class, 'bulkDestroy'])->name('proses-produksi.bulk-destroy');
 Route::delete('/proses-produksi/{id}', [SpreadsheetController::class, 'destroy'])->name('proses-produksi.destroy');

@@ -281,6 +281,16 @@
             </div>
         @endif
 
+        {{-- Bulk Action Bar / Table Toolbar --}}
+        <div id="bulkActionBar" class="mb-3 d-none align-items-center justify-content-end">
+            <button id="btnBulkDelete" type="button"
+                class="btn btn-sm btn-danger d-flex align-items-center gap-1 shadow-sm px-3"
+                onclick="confirmBulkDelete()">
+                <i class="bx bx-trash fs-5"></i>
+                Hapus Terpilih (<span id="bulkDeleteCount">0</span>)
+            </button>
+        </div>
+
         {{-- Main Table Card --}}
         <div class="card mb-4 border-0 ppx-card" id="mainTableCard">
             <div class="card-body p-0">
@@ -419,6 +429,10 @@
                                         <th class="text-center">OutPCS</th>
                                         <th class="text-center">OutDrik</th>
                                         <th class="text-center">Created</th>
+                                        <th class="text-center" style="width:38px;">
+                                            <input type="checkbox" id="checkAllRows" class="form-check-input"
+                                                style="cursor:pointer;">
+                                        </th>
                                         <th class="text-center pe-4" style="width:120px">Aksi</th>
                                     </tr>
                                 </thead>
@@ -558,6 +572,10 @@
                                             <td class="text-center fw-semibold text-nowrap">
                                                 {{ $data->created_at ? strtoupper(\Carbon\Carbon::parse($data->created_at)->setTimezone('Asia/Jakarta')->format(' d M y H:i')) : '-' }}
                                             </td>
+                                            <td class="text-center">
+                                                <input type="checkbox" class="form-check-input row-checkbox"
+                                                    value="{{ $data->id }}" style="cursor:pointer;">
+                                            </td>
                                             {{-- Manage Dropdown --}}
                                             <td class="text-center pe-4">
                                                 <div class="dropdown">
@@ -622,7 +640,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="18" class="text-center py-5 text-muted">
+                                            <td colspan="20" class="text-center py-5 text-muted">
                                                 <i class="bx bx-data fs-1 d-block mb-2 opacity-25"></i>
                                                 Belum ada data proses produksi yang tersimpan.
                                             </td>
@@ -637,6 +655,8 @@
                                         <td class="text-center">{{ number_format($total['outputpcs'], 0, ',', '.') }}</td>
                                         <td class="text-center">{{ number_format($total['outputdrik'], 0, ',', '.') }}
                                         </td>
+                                        <td></td>
+                                        <td></td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
@@ -1037,17 +1057,21 @@
             }
 
             /* ══════════════════════════════════════════════════════
-                                                                                                                           FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
-                                                                                                                           `left` kolom-2 di-set lewat JS (updateStickyOffsets)
-                                                                                                                           karena lebar kolom Job bisa berubah-ubah isinya —
-                                                                                                                           kalau di-hardcode di CSS, begitu isi Job lebih
-                                                                                                                           panjang/pendek, kolom Produk akan salah posisi
-                                                                                                                           (menutupi Job atau ada gap kosong).
-                                                                                                                           ══════════════════════════════════════════════════════ */
+                                                                                                                                                                                                                   FREEZE 2 KOLOM: Job (kolom-1) + Produk (kolom-2).
+                                                                                                                                                                                                                   `left` kolom-2 di-set lewat JS (updateStickyOffsets)
+                                                                                                                                                                                                                   karena lebar kolom Job bisa berubah-ubah isinya —
+                                                                                                                                                                                                                   kalau di-hardcode di CSS, begitu isi Job lebih
+                                                                                                                                                                                                                   panjang/pendek, kolom Produk akan salah posisi
+                                                                                                                                                                                                                   (menutupi Job atau ada gap kosong).
+                                                                                                                                                                                                                   ══════════════════════════════════════════════════════ */
             .produksi-modern .ppx-sticky-col {
                 position: sticky;
                 z-index: 6;
                 background-color: var(--ppx-surface, #ffffff);
+            }
+
+            .produksi-modern .ppx-sticky-col-cb {
+                left: 0;
             }
 
             .produksi-modern .ppx-sticky-col-1 {
@@ -2259,7 +2283,7 @@
             function confirmDeleteRow(id, jobLabel) {
                 if (!confirm(
                         `Yakin ingin menghapus data Job "${jobLabel}" ini?\n\nData akan tetap tercatat di Activity Log sebagai riwayat.`
-                        )) {
+                    )) {
                     return;
                 }
 
@@ -2281,6 +2305,9 @@
                                 const newTfoot = newDoc.querySelector('#tblProduksi tfoot');
                                 if (newTbody) $('#tblProduksi tbody').replaceWith($(newTbody));
                                 if (newTfoot) $('#tblProduksi tfoot').replaceWith($(newTfoot));
+                                // tambah bulk delete
+                                $('#checkAllRows').prop('checked', false);
+                                updateBulkDeleteUI();
                                 updateStickyOffsets();
                             });
                         } else {
@@ -2288,6 +2315,82 @@
                         }
                     })
                     .catch(() => showToast('Gagal menghapus data.', 'danger'));
+            }
+
+            // ── Bulk Delete Handling ──────────────────────────────────
+            $(document).on('change', '#checkAllRows', function() {
+                $('.row-checkbox').prop('checked', this.checked);
+                updateBulkDeleteUI();
+            });
+
+            $(document).on('change', '.row-checkbox', function() {
+                const total = $('.row-checkbox').length;
+                const checked = $('.row-checkbox:checked').length;
+                $('#checkAllRows').prop('checked', total > 0 && total === checked);
+                updateBulkDeleteUI();
+            });
+
+            function updateBulkDeleteUI() {
+                const count = $('.row-checkbox:checked').length;
+                const bar = $('#bulkActionBar');
+                const counter = $('#bulkDeleteCount');
+
+                counter.text(count);
+                if (count > 0) {
+                    bar.removeClass('d-none').addClass('d-flex');
+                } else {
+                    bar.addClass('d-none').removeClass('d-flex');
+                    $('#checkAllRows').prop('checked', false);
+                }
+            }
+
+            function confirmBulkDelete() {
+                const selectedIds = [];
+                $('.row-checkbox:checked').each(function() {
+                    selectedIds.push($(this).val());
+                });
+
+                if (selectedIds.length === 0) {
+                    showToast('Tidak ada data yang dipilih.', 'warning');
+                    return;
+                }
+
+                if (!confirm(
+                        `Yakin ingin menghapus ${selectedIds.length} data terpilih?\n\nData akan tetap tercatat di Activity Log sebagai riwayat.`
+                    )) {
+                    return;
+                }
+
+                fetch('{{ route('proses-produksi.bulk-destroy') }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            ids: selectedIds
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) {
+                            showToast(res.message, 'success');
+                            $.get(window.location.href, function(html) {
+                                const newDoc = new DOMParser().parseFromString(html, 'text/html');
+                                const newTbody = newDoc.querySelector('#tblProduksi tbody');
+                                const newTfoot = newDoc.querySelector('#tblProduksi tfoot');
+                                if (newTbody) $('#tblProduksi tbody').replaceWith($(newTbody));
+                                if (newTfoot) $('#tblProduksi tfoot').replaceWith($(newTfoot));
+                                $('#checkAllRows').prop('checked', false);
+                                updateBulkDeleteUI();
+                                updateStickyOffsets();
+                            });
+                        } else {
+                            showToast(res.message || 'Gagal menghapus data terpilih.', 'danger');
+                        }
+                    })
+                    .catch(() => showToast('Gagal menghapus data terpilih.', 'danger'));
             }
         </script>
 

@@ -223,7 +223,7 @@
                                         <label class="w-1/3">Operator</label>
                                         <div class="operator-wrapper relative w-2/3">
                                             <div class="operator-badges flex flex-wrap gap-1 mb-1"></div>
-                                            <input type="text" required
+                                            <input type="text"
                                                 class="operator-input border px-2 py-1 w-full rounded-md"
                                                 placeholder="Ketik atau pilih operator..." autocomplete="off">
                                             <div
@@ -646,8 +646,14 @@
                     }
                     shown.forEach(opt => {
                         const item = document.createElement('div');
-                        item.textContent = opt.text;
-                        item.className = 'px-2 py-1 hover:bg-blue-100 cursor-pointer';
+                        item.className =
+                            'px-2.5 py-1.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center text-xs border-b border-gray-100 last:border-b-0 transition-colors';
+                        if (opt.bagian) {
+                            item.innerHTML =
+                                `<span class="font-medium text-gray-800">${opt.text}</span><span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 ml-2 flex-shrink-0">${opt.bagian}</span>`;
+                        } else {
+                            item.innerHTML = `<span class="font-medium text-gray-800">${opt.text}</span>`;
+                        }
                         item.addEventListener('click', () => addOperator(opt.value));
                         operatorList.appendChild(item);
                     });

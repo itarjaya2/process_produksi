@@ -3,8 +3,19 @@
 @section('main-content')
 
     @php
-        /**
-         */
+        if (!function_exists('_prosesLabel')) {
+            function _prosesLabel($namaProses)
+            {
+                $p = strtolower(trim((string) $namaProses));
+                $map = [
+                    'lem' => 'GLUED',
+                    'lem setengah jadi' => 'HALF GLUE',
+                    'sortir lem' => 'SORTIR GLUE',
+                ];
+                return $map[$p] ?? $namaProses;
+            }
+        }
+
         $fieldLabels = [
             'job' => ['label' => 'No. Job', 'code' => 'job'],
             'proses' => ['label' => 'Proses', 'code' => 'proses'],
@@ -542,7 +553,7 @@
                                     @foreach ($listProses as $p)
                                         <option value="{{ $p }}"
                                             {{ request('proses') == $p ? 'selected' : '' }}>
-                                            {{ $p }}
+                                            {{ _prosesLabel($p) }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -626,7 +637,7 @@
                     $activeBadges['No. Job'] = request('job');
                 }
                 if (request()->filled('proses')) {
-                    $activeBadges['Proses'] = request('proses');
+                    $activeBadges['Proses'] = _prosesLabel(request('proses'));
                 }
                 if (request()->filled('user_id')) {
                     $activeBadges['User ID'] = request('user_id');
@@ -786,7 +797,7 @@
                                         @if ($proses)
                                             <span class="badge bg-label-{{ $bColor }} fw-semibold"
                                                 style="font-size:.74rem; border-radius:8px; padding:.22rem .58rem">
-                                                {{ $proses }}
+                                                {{ _prosesLabel($proses) }}
                                             </span>
                                         @else
                                             <span class="text-muted small">–</span>
@@ -820,7 +831,7 @@
                                                             style="white-space:nowrap; max-width:none;">
                                                             <span class="text-muted"
                                                                 style="font-weight:500">{{ $snapshotLabels[$key] ?? $key }}:</span>
-                                                            {{ $val }}
+                                                            {{ $key === 'proses' ? _prosesLabel($val) : $val }}
                                                         </span>
                                                     @endforeach
                                                 </div>
@@ -836,6 +847,8 @@
                                                     style="white-space: nowrap; max-width: none;">
                                                     @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
                                                         {{ \Carbon\Carbon::parse($oldVal)->format('d/m/y H:i') }}
+                                                    @elseif ($rawField === 'proses')
+                                                        {{ _prosesLabel($oldVal) }}
                                                     @else
                                                         {{ is_numeric($oldVal) && $rawField !== 'job'
                                                             ? (floor($oldVal) == $oldVal
@@ -858,6 +871,8 @@
                                                     style="white-space: nowrap; max-width: none;">
                                                     @if (in_array($rawField, ['tanggal', 'set', 'run', 'finish']))
                                                         {{ \Carbon\Carbon::parse($newVal)->format('d/m/y H:i') }}
+                                                    @elseif ($rawField === 'proses')
+                                                        {{ _prosesLabel($newVal) }}
                                                     @else
                                                         {{ is_numeric($newVal) && $rawField !== 'job' ? (floor($newVal) == $newVal ? number_format((float) $newVal, 0, ',', '.') : number_format((float) $newVal, 2, ',', '.')) : $newVal }}
                                                     @endif

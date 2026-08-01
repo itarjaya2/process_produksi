@@ -317,7 +317,7 @@ class SpreadsheetController extends Controller
             'lem',
             'lem setengah jadi',
             'sortir lem',
-            'sortir cetak',
+
         ])) {
             // jtdrik = jtpcs/upspk
             $record->jtdrik = $upspk > 0 ? $record->jtpcs / $upspk : 0;
@@ -877,6 +877,63 @@ class SpreadsheetController extends Controller
         }
 
         return back()->with('success', 'Data berhasil dihapus.');
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        if (is_string($ids)) {
+            $ids = json_decode($ids, true) ?? array_filter(explode(',', $ids));
+        }
+
+        if (empty($ids) || ! is_array($ids)) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Tidak ada data yang dipilih.'], 400);
+            }
+
+            return back()->with('error', 'Tidak ada data yang dipilih.');
+        }
+
+        $records = ProsesProduksi::whereIn('id', $ids)->get();
+
+        if ($records->isEmpty()) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
+            }
+
+            return back()->with('error', 'Data tidak ditemukan.');
+        }
+
+        $deletedCount = 0;
+        DB::transaction(function () use ($records, &$deletedCount) {
+            foreach ($records as $record) {
+                $snapshot = Arr::only($record->toArray(), [
+                    'job', 'product', 'designno', 'po', 'qty', 'proses', 'mesin',
+                    'operator', 'shift', 'tanggal', 'set', 'run', 'finish', 'break',
+                    'upspk', 'input', 'jtdrik', 'jtpcs', 'outputdrik', 'outputpcs',
+                ]);
+
+                ActivityLog::create([
+                    'proses_produksi_id' => $record->id,
+                    'user_id' => auth()->id() ?? 1,
+                    'field_name' => 'DELETED',
+                    'old_value' => json_encode($snapshot),
+                    'new_value' => null,
+                ]);
+
+                $record->delete();
+                $deletedCount++;
+            }
+        });
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $deletedCount.' data berhasil dihapus.',
+            ]);
+        }
+
+        return back()->with('success', $deletedCount.' data berhasil dihapus.');
     }
 
     public function inlineUpdate(Request $request)
